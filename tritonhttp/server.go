@@ -183,7 +183,15 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		// log.Printf("Handle good request: %v", string(empJSON))
 
 		res := s.HandleGoodRequest()
+		err = s.parseAndGenerateResponse(req, res)
 		prettyPrintRes(res)
+		// 404 error
+		if err != nil {
+			res := s.HandleNotFoundRequest()
+			_ = res.Write(conn)
+			_ = conn.Close()
+			return
+		}
 		err = res.Write(conn)
 		if err != nil {
 			fmt.Println(err)
@@ -194,72 +202,31 @@ func (s *Server) HandleConnection(conn net.Conn) {
 	}
 }
 
-func (req *Request) processHeader() (err error) {
-	if req.URL[0] != '/' {
-		return invalidHeaderError("InvalidHeader: Request URL should start with `/`, but URL is ", req.URL)
-	}
-	_, ok := req.Headers[HOST]
-	if !ok {
-		b, err := json.Marshal(req.Headers)
-		if err != nil {
-			return invalidHeaderError("InvalidHeader: Does contain `host` field & header cannot be converted to JSON", "")
-		}
-		return invalidHeaderError("InvalidHeader: Does not contain `host` field", string(b))
-	}
-	req.Host = req.Headers[HOST]
-	_, ok = req.Headers[CONNECTION]
-	if ok {
-		val := req.Headers[CONNECTION]
-		if val == "close" {
-			req.Close = true
-		} else {
-			return invalidHeaderError("InvalidHeader: `Connection` key in Header has invalid value. Allowed: close, actual: ", req.Headers[CONNECTION])
-		}
-	}
-
-	return nil
-}
-
+// HTTP/1.1 200 OK | Connection close
 func (s *Server) HandleCloseRequest() (res *Response) {
 	res = &Response{}
-	res.HandleOK(true)
+	res.HandleOK()
 	res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
 
 	return res
 }
 
+// HTTP/1.1 200 OK
 func (s *Server) HandleGoodRequest() (res *Response) {
 	res = &Response{}
-	res.HandleOK(false)
-	res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
+	res.HandleOK()
+	// res.FilePath = filepath.Join(s.DocRoot, res.Request.URL)
 
 	return res
 }
 
-func getDate() (int, time.Month, int) {
-	now := time.Now()
-	return now.Date()
-}
+// HTTP/1.1 404 Not Found
+func (s *Server) HandleNotFoundRequest() (res *Response) {
+	res = &Response{}
+	res.HandleNotFound()
+	res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
 
-// HandleOK prepares res to be a 200 OK response
-// ready to be written back to client.
-func (res *Response) HandleOK(connClose bool) {
-	res.init()
-	res.StatusCode = statusOK
-}
-
-// HandleBadRequest prepares res to be a 405 Method Not allowed response
-func (res *Response) HandleBadRequest() {
-	res.init()
-	res.StatusCode = statusBadRequest
-	res.FilePath = ""
-}
-
-func (res *Response) init() {
-	res.Proto = responseProto
-	res.Headers = make(map[string]string)
-
-	res.Headers[DATE] = FormatTime(time.Now())
+	return res
 }
 
 func ReadRequest(br *bufio.Reader) (req *Request, err error) {
@@ -314,11 +281,6 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 	return req, nil
 }
 
-func (req *Request) init() {
-	req.Headers = make(map[string]string)
-	req.Close = false
-}
-
 // parseRequestLine parses "GET /foo HTTP/1.1" into its individual parts.
 func parseRequestLine(line string) (string, string, string, error) {
 	fields := strings.SplitN(line, " ", 3)
@@ -336,6 +298,10 @@ func badStringError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
 
+func notFoundError(what, val string) error {
+	return fmt.Errorf("%s %q", what, val)
+}
+
 func invalidHeaderError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
@@ -344,43 +310,26 @@ func invalidHeaderFieldQuantityMismatchError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
 
-func (res *Response) generateResponseHeaders() string {
-	line := ""
-	for key, value := range res.Headers {
-		line += key + ": " + value + "\r\n"
-	}
-	// line += "\r\n"
-	return line
-}
-
-func (s *Server) parseAndGenerateResponse(req *Request, res *Response) {
+func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Request = req
 
 	host := req.Host
 	url := req.URL
 
-	filelocation := s.DocRoot + "/" + host + url
+	if _, ok := s.VirtualHosts[host]; !ok {
+		return notFoundError("HostNotFoundError: Host not present in DocRoot. Host: ", host)
+	}
 
+	filelocation := s.VirtualHosts[host] + url
+	fmt.Printf("Location is: %s\n", filelocation)
 	info, err := os.Stat(filelocation)
 	if os.IsNotExist(err) {
-		fmt.Printf(err.Error())
+		s.HandleNotFoundRequest()
+		return notFoundError("HostNotFoundError: File Not Found. ", filelocation)
 	}
-	req.Headers["Content-Length"] = fmt.Sprint(info.Size())
-	req.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
-	req.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
-
-}
-
-func (res *Response) Write(w io.Writer) error {
-	bw := bufio.NewWriter(w)
-
-	statusLine := fmt.Sprintf("%v %v %v\r\n", res.Proto, res.StatusCode, statusText[res.StatusCode])
-	if _, err := bw.WriteString(statusLine + res.generateResponseHeaders()); err != nil {
-		return err
-	}
-
-	if err := bw.Flush(); err != nil {
-		return err
-	}
+	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
+	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
+	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
+	res.FilePath = filelocation
 	return nil
 }

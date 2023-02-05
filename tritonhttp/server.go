@@ -20,12 +20,17 @@ const (
 	statusOK               = 200
 	statusMethodNotAllowed = 405
 	statusNotFound         = 404
+	statusBadRequest       = 400
+
+	HOST       = "host"
+	CONNECTION = "connection"
 )
 
 var statusText = map[int]string{
 	statusOK:               "OK",
 	statusMethodNotAllowed: "Method Not Allowed",
 	statusNotFound:         "Not Found",
+	statusBadRequest:       "Bad Request",
 }
 
 type Server struct {
@@ -95,7 +100,6 @@ func prettyPrint(request *Request) {
 }
 
 // HandleConnection reads requests from the accepted conn and handles them.
-// HandleConnection reads requests from the accepted conn and handles them.
 func (s *Server) HandleConnection(conn net.Conn) {
 	br := bufio.NewReader(conn)
 	for {
@@ -110,6 +114,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		req, err := ReadRequest(br)
 
 		// Handle EOF
+
 		if errors.Is(err, io.EOF) {
 			log.Printf("Connection closed by %v", conn.RemoteAddr())
 			_ = conn.Close()
@@ -124,6 +129,28 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			return
 		}
 
+		err = req.processHeader()
+
+		if err != nil {
+			log.Printf(err.Error())
+			log.Printf("Handle bad request for error")
+			res := &Response{}
+			res.HandleBadRequest()
+			_ = res.Write(conn)
+			_ = conn.Close()
+			return
+		}
+		prettyPrint(req)
+		if req.Close {
+			fmt.Print("`Connection: close` header encountered\nClosing connection\n")
+			res := s.HandleGoodRequest()
+			err = res.Write(conn)
+			if err != nil {
+				fmt.Println(err)
+			}
+			conn.Close()
+			return
+		}
 		// Handle the request which is not a GET and immediately close the connection and return
 		if err != nil {
 			log.Printf("Handle bad request for error: %v", err)
@@ -133,9 +160,9 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			_ = conn.Close()
 			return
 		}
-		prettyPrint(req)
 		// Handle good request
-		log.Printf("Handle good request: %v", req)
+		// log.Printf("Handle good request: %v", string(empJSON))
+
 		res := s.HandleGoodRequest()
 		err = res.Write(conn)
 		if err != nil {
@@ -147,6 +174,31 @@ func (s *Server) HandleConnection(conn net.Conn) {
 	}
 }
 
+func (req *Request) processHeader() (err error) {
+	if req.URL[0] != '/' {
+		return invalidHeaderError("InvalidHeader: Request URL should start with `/`, but URL is ", req.URL)
+	}
+	_, ok := req.Headers[HOST]
+	if !ok {
+		b, err := json.Marshal(req.Headers)
+		if err != nil {
+			return invalidHeaderError("InvalidHeader: Does contain `host` field & header cannot be converted to JSON", "")
+		}
+		return invalidHeaderError("InvalidHeader: Does not contain `host` field", string(b))
+	}
+	req.Host = req.Headers[HOST]
+	_, ok = req.Headers[CONNECTION]
+	if ok {
+		val := req.Headers[CONNECTION]
+		if val == "close" {
+			req.Close = true
+		} else {
+			return invalidHeaderError("InvalidHeader: `Connection` key in Header has invalid value. Allowed: close, actual: ", req.Headers[CONNECTION])
+		}
+	}
+
+	return nil
+}
 func (s *Server) HandleGoodRequest() (res *Response) {
 	res = &Response{}
 	res.HandleOK()
@@ -165,7 +217,7 @@ func (res *Response) HandleOK() {
 // HandleBadRequest prepares res to be a 405 Method Not allowed response
 func (res *Response) HandleBadRequest() {
 	res.init()
-	res.StatusCode = statusMethodNotAllowed
+	res.StatusCode = statusBadRequest
 	res.FilePath = ""
 }
 
@@ -217,7 +269,7 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 			if strings.Contains(value, " ") {
 				return req, invalidHeaderError("InvalidHeader: value in header has whitespace", line)
 			}
-			req.Headers[key] = value
+			req.Headers[strings.ToLower(key)] = strings.ToLower(value)
 		}
 		fmt.Println("Read line from request", line)
 	}

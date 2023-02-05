@@ -42,6 +42,7 @@ func main() {
 	s := &tritonhttp.Server{
 		Addr:         addr,
 		VirtualHosts: virtualHosts,
+		DocRoot:      *docroot_dirs_path,
 	}
 	log.Fatal(s.ListenAndServe())
 }

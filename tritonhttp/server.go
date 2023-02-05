@@ -24,6 +24,9 @@ const (
 
 	HOST       = "host"
 	CONNECTION = "connection"
+	DATE       = "Date"
+
+	// LAYOUT = "01 02 2006 15:04:05"
 )
 
 var statusText = map[int]string{
@@ -91,12 +94,20 @@ func (s *Server) ValidateServerSetup() error {
 	return nil
 }
 
-func prettyPrint(request *Request) {
+func prettyPrintReq(request *Request) {
 	empJSON, err := json.MarshalIndent(*request, "", "  ")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 	fmt.Printf("Request %s\n", string(empJSON))
+}
+
+func prettyPrintRes(response *Response) {
+	empJSON, err := json.MarshalIndent(*response, "", "  ")
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	fmt.Printf("Response %s\n", string(empJSON))
 }
 
 // HandleConnection reads requests from the accepted conn and handles them.
@@ -112,15 +123,22 @@ func (s *Server) HandleConnection(conn net.Conn) {
 
 		// Read next request from the client
 		req, err := ReadRequest(br)
-
 		// Handle EOF
-
 		if errors.Is(err, io.EOF) {
 			log.Printf("Connection closed by %v", conn.RemoteAddr())
 			_ = conn.Close()
 			return
 		}
 
+		if err != nil {
+			log.Printf(err.Error())
+			log.Printf("Handle bad request for error")
+			res := &Response{}
+			res.HandleBadRequest()
+			_ = res.Write(conn)
+			_ = conn.Close()
+			return
+		}
 		// timeout in this application means we just close the connection
 		// Note : proj3 might require you to do a bit more here
 		if err, ok := err.(net.Error); ok && err.Timeout() {
@@ -140,10 +158,10 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			_ = conn.Close()
 			return
 		}
-		prettyPrint(req)
+		prettyPrintReq(req)
 		if req.Close {
 			fmt.Print("`Connection: close` header encountered\nClosing connection\n")
-			res := s.HandleGoodRequest()
+			res := s.HandleCloseRequest()
 			err = res.Write(conn)
 			if err != nil {
 				fmt.Println(err)
@@ -156,6 +174,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			log.Printf("Handle bad request for error: %v", err)
 			res := &Response{}
 			res.HandleBadRequest()
+			prettyPrintRes(res)
 			_ = res.Write(conn)
 			_ = conn.Close()
 			return
@@ -164,6 +183,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		// log.Printf("Handle good request: %v", string(empJSON))
 
 		res := s.HandleGoodRequest()
+		prettyPrintRes(res)
 		err = res.Write(conn)
 		if err != nil {
 			fmt.Println(err)
@@ -199,17 +219,31 @@ func (req *Request) processHeader() (err error) {
 
 	return nil
 }
-func (s *Server) HandleGoodRequest() (res *Response) {
+
+func (s *Server) HandleCloseRequest() (res *Response) {
 	res = &Response{}
-	res.HandleOK()
+	res.HandleOK(true)
 	res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
 
 	return res
 }
 
+func (s *Server) HandleGoodRequest() (res *Response) {
+	res = &Response{}
+	res.HandleOK(false)
+	res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
+
+	return res
+}
+
+func getDate() (int, time.Month, int) {
+	now := time.Now()
+	return now.Date()
+}
+
 // HandleOK prepares res to be a 200 OK response
 // ready to be written back to client.
-func (res *Response) HandleOK() {
+func (res *Response) HandleOK(connClose bool) {
 	res.init()
 	res.StatusCode = statusOK
 }
@@ -223,6 +257,9 @@ func (res *Response) HandleBadRequest() {
 
 func (res *Response) init() {
 	res.Proto = responseProto
+	res.Headers = make(map[string]string)
+
+	res.Headers[DATE] = FormatTime(time.Now())
 }
 
 func ReadRequest(br *bufio.Reader) (req *Request, err error) {
@@ -307,11 +344,38 @@ func invalidHeaderFieldQuantityMismatchError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
 
+func (res *Response) generateResponseHeaders() string {
+	line := ""
+	for key, value := range res.Headers {
+		line += key + ": " + value + "\r\n"
+	}
+	// line += "\r\n"
+	return line
+}
+
+func (s *Server) parseAndGenerateResponse(req *Request, res *Response) {
+	res.Request = req
+
+	host := req.Host
+	url := req.URL
+
+	filelocation := s.DocRoot + "/" + host + url
+
+	info, err := os.Stat(filelocation)
+	if os.IsNotExist(err) {
+		fmt.Printf(err.Error())
+	}
+	req.Headers["Content-Length"] = fmt.Sprint(info.Size())
+	req.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
+	req.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
+
+}
+
 func (res *Response) Write(w io.Writer) error {
 	bw := bufio.NewWriter(w)
 
 	statusLine := fmt.Sprintf("%v %v %v\r\n", res.Proto, res.StatusCode, statusText[res.StatusCode])
-	if _, err := bw.WriteString(statusLine); err != nil {
+	if _, err := bw.WriteString(statusLine + res.generateResponseHeaders()); err != nil {
 		return err
 	}
 

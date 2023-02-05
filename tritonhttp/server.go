@@ -2,6 +2,7 @@ package tritonhttp
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -85,6 +86,15 @@ func (s *Server) ValidateServerSetup() error {
 	return nil
 }
 
+func prettyPrint(request *Request) {
+	empJSON, err := json.MarshalIndent(*request, "", "  ")
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	fmt.Printf("Request %s\n", string(empJSON))
+}
+
+// HandleConnection reads requests from the accepted conn and handles them.
 // HandleConnection reads requests from the accepted conn and handles them.
 func (s *Server) HandleConnection(conn net.Conn) {
 	br := bufio.NewReader(conn)
@@ -123,7 +133,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			_ = conn.Close()
 			return
 		}
-
+		prettyPrint(req)
 		// Handle good request
 		log.Printf("Handle good request: %v", req)
 		res := s.HandleGoodRequest()
@@ -166,13 +176,15 @@ func (res *Response) init() {
 func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 	req = &Request{}
 
+	req.init()
+
 	// Read start line
 	line, err := ReadLine(br)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Method, err = parseRequestLine(line)
+	req.Method, req.URL, req.Proto, err = parseRequestLine(line)
 	if err != nil {
 		return nil, badStringError("malformed start line", line)
 	}
@@ -190,19 +202,41 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 			// This marks header end
 			break
 		}
+		if !strings.Contains(line, ":") {
+			return req, invalidHeaderError("InvalidHeader: Header does not contain colon", line)
+		} else {
+			fields := strings.SplitN(line, ":", 2)
+			if len(fields) != 2 {
+				return req, invalidHeaderFieldQuantityMismatchError("InvalidHeader: Header does not contain two colon-separated values %v", line)
+			}
+			key := strings.TrimSpace(fields[0])
+			if strings.Contains(key, " ") {
+				return req, invalidHeaderError("InvalidHeader: key in header has whitespace", line)
+			}
+			value := strings.TrimSpace(fields[1])
+			if strings.Contains(value, " ") {
+				return req, invalidHeaderError("InvalidHeader: value in header has whitespace", line)
+			}
+			req.Headers[key] = value
+		}
 		fmt.Println("Read line from request", line)
 	}
 
 	return req, nil
 }
 
+func (req *Request) init() {
+	req.Headers = make(map[string]string)
+	req.Close = false
+}
+
 // parseRequestLine parses "GET /foo HTTP/1.1" into its individual parts.
-func parseRequestLine(line string) (string, error) {
-	fields := strings.SplitN(line, " ", 2)
-	if len(fields) != 2 {
-		return "", fmt.Errorf("could not parse the request line, got fields %v", fields)
+func parseRequestLine(line string) (string, string, string, error) {
+	fields := strings.SplitN(line, " ", 3)
+	if len(fields) != 3 {
+		return "", "", "", fmt.Errorf("could not parse the request line, got fields %v", fields)
 	}
-	return fields[0], nil
+	return fields[0], fields[1], fields[2], nil
 }
 
 func validMethod(method string) bool {
@@ -210,6 +244,14 @@ func validMethod(method string) bool {
 }
 
 func badStringError(what, val string) error {
+	return fmt.Errorf("%s %q", what, val)
+}
+
+func invalidHeaderError(what, val string) error {
+	return fmt.Errorf("%s %q", what, val)
+}
+
+func invalidHeaderFieldQuantityMismatchError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
 

@@ -159,16 +159,17 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			return
 		}
 		prettyPrintReq(req)
-		if req.Close {
-			fmt.Print("`Connection: close` header encountered\nClosing connection\n")
-			res := s.HandleCloseRequest()
-			err = res.Write(conn)
-			if err != nil {
-				fmt.Println(err)
-			}
-			conn.Close()
-			return
-		}
+		// if req.Close {
+		// 	fmt.Print("`Connection: close` header encountered\nClosing connection\n")
+		// 	res := s.HandleCloseRequest()
+		// 	prettyPrintRes(res)
+		// 	err = res.Write(conn)
+		// 	if err != nil {
+		// 		fmt.Println(err)
+		// 	}
+		// 	conn.Close()
+		// 	return
+		// }
 		// Handle the request which is not a GET and immediately close the connection and return
 		if err != nil {
 			log.Printf("Handle bad request for error: %v", err)
@@ -195,6 +196,14 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		err = res.Write(conn)
 		if err != nil {
 			fmt.Println(err)
+		}
+		if req.Close {
+			err = res.Write(conn)
+			if err != nil {
+				fmt.Println(err)
+			}
+			conn.Close()
+			return
 		}
 
 		// We'll never close the connection and handle as many requests for this connection and pass on this
@@ -224,7 +233,7 @@ func (s *Server) HandleGoodRequest() (res *Response) {
 func (s *Server) HandleNotFoundRequest() (res *Response) {
 	res = &Response{}
 	res.HandleNotFound()
-	res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
+	// res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
 
 	return res
 }
@@ -320,16 +329,23 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 		return notFoundError("HostNotFoundError: Host not present in DocRoot. Host: ", host)
 	}
 
-	filelocation := s.VirtualHosts[host] + url
+	filelocation := s.VirtualHosts[host] + filepath.Clean(url)
 	fmt.Printf("Location is: %s\n", filelocation)
 	info, err := os.Stat(filelocation)
 	if os.IsNotExist(err) {
 		s.HandleNotFoundRequest()
 		return notFoundError("HostNotFoundError: File Not Found. ", filelocation)
 	}
+	if info.IsDir() {
+		filelocation = filelocation + "index.html"
+		info, err = os.Stat(filelocation)
+	}
 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
 	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
 	res.FilePath = filelocation
+	body, err := os.ReadFile(filelocation)
+	res.Body = string(body)
+
 	return nil
 }

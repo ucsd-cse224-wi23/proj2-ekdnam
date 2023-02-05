@@ -99,6 +99,7 @@ func TestGoFetch1(t *testing.T) {
 
 	respreader := bufio.NewReader(bytes.NewReader(respbytes))
 	resp, err := http.ReadResponse(respreader, nil)
+	log.Print(resp)
 	if err != nil {
 		t.Fatalf("got an error parsing the response: %v\n", err.Error())
 	}
@@ -138,6 +139,7 @@ func TestGoFetch2(t *testing.T) {
 
 	// response 1
 	resp, err := http.ReadResponse(respreader, nil)
+	log.Print(resp)
 	if err != nil {
 		t.Fatalf("got an error parsing the response: %v\n", err.Error())
 	}

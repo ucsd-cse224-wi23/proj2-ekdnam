@@ -23,6 +23,9 @@ type Response struct {
 	// FilePath is the local path to the file to serve.
 	// It could be "", which means there is no file to serve.
 	FilePath string
+
+	// Response body will contain response as a HTML
+	Body string
 }
 
 // HandleOK prepares res to be a 200 OK response
@@ -37,6 +40,8 @@ func (res *Response) HandleClose() {
 	res.init()
 	res.StatusCode = statusOK
 	res.StatusText = statusText[statusOK]
+	res.FilePath = ""
+	res.Headers[CONNECTION] = "close"
 }
 
 // HandleBadRequest prepares res to be a 405 Method Not allowed response
@@ -44,12 +49,13 @@ func (res *Response) HandleBadRequest() {
 	res.init()
 	res.StatusCode = statusBadRequest
 	res.FilePath = ""
+	res.Headers[CONNECTION] = "close"
 }
 
 func (res *Response) init() {
 	res.Proto = responseProto
 	res.Headers = make(map[string]string)
-
+	res.Body = ""
 	res.Headers[DATE] = FormatTime(time.Now())
 }
 
@@ -57,7 +63,12 @@ func (res *Response) Write(w io.Writer) error {
 	bw := bufio.NewWriter(w)
 
 	statusLine := fmt.Sprintf("%v %v %v\r\n", res.Proto, res.StatusCode, statusText[res.StatusCode])
-	if _, err := bw.WriteString(statusLine + res.generateResponseHeaders()); err != nil {
+	serializedResponse := fmt.Sprintf(statusLine + res.generateResponseHeaders())
+	if res.Body != "" {
+		serializedResponse += "\r\n" + res.Body + "\r\n"
+	}
+	fmt.Printf("Serialized Response: \n%s\n", serializedResponse)
+	if _, err := bw.WriteString(serializedResponse); err != nil {
 		return err
 	}
 

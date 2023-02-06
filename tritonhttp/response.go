@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"sort"
 	"time"
 )
 
@@ -59,18 +60,35 @@ func (res *Response) init() {
 	res.Headers[DATE] = FormatTime(time.Now())
 }
 
+func (res *Response) getStatusLine() string {
+	return fmt.Sprintf("%v %v %v\r\n", res.Proto, res.StatusCode, statusText[res.StatusCode])
+}
+
 func (res *Response) Write(w io.Writer) error {
 	bw := bufio.NewWriter(w)
 
-	statusLine := fmt.Sprintf("%v %v %v\r\n", res.Proto, res.StatusCode, statusText[res.StatusCode])
-	serializedResponse := fmt.Sprintf(statusLine + res.generateResponseHeaders())
-	if res.Body != "" {
-		serializedResponse += "\r\n" + res.Body + "\r\n"
-	}
-	fmt.Printf("Serialized Response: \n%s\n", serializedResponse)
-	if _, err := bw.WriteString(serializedResponse); err != nil {
+	statusLine := res.getStatusLine()
+	headers := res.generateResponseHeaders()
+	_, err := w.Write([]byte(statusLine + headers + "\r\n"))
+	if err != nil {
 		return err
 	}
+	if res.StatusCode == 200 {
+		_, err := w.Write([]byte(res.Body))
+		if err != nil {
+			return err
+		}
+	}
+
+	// serializedResponse := fmt.Sprintf(statusLine + res.generateResponseHeaders())
+	// if res.Body != "" {
+	// 	serializedResponse += "\r\n" + res.Body
+	// }
+	// serializedResponse += "\r\n"
+	// fmt.Printf("Serialized Response: \n%s\n", serializedResponse)
+	// if _, err := bw.WriteString(serializedResponse); err != nil {
+	// 	return err
+	// }
 
 	if err := bw.Flush(); err != nil {
 		return err
@@ -80,10 +98,19 @@ func (res *Response) Write(w io.Writer) error {
 
 func (res *Response) generateResponseHeaders() string {
 	line := ""
-	for key, value := range res.Headers {
-		line += key + ": " + value + "\r\n"
+	idx := 0
+	keys := make([]string, len(res.Headers))
+	for k := range res.Headers {
+		keys[idx] = k
+		idx += 1
 	}
-	// line += "\r\n"
+	sort.Strings(keys)
+	for _, k := range keys {
+		headerValue, ok := res.Headers[k]
+		if ok {
+			line += fmt.Sprintf(k + ":" + headerValue + "\r\n")
+		}
+	}
 	return line
 }
 

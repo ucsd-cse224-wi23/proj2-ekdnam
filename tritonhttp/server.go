@@ -46,8 +46,12 @@ type Server struct {
 	VirtualHosts map[string]string
 }
 
+func (s *Server) init() {
+	s.DocRoot = "docroot_dirs"
+}
 func (s *Server) ListenAndServe() error {
 	// Validate the configuration of the server
+	s.init()
 	if err := s.ValidateServerSetup(); err != nil {
 		return fmt.Errorf("server is not setup correctly %v", err)
 	}
@@ -189,6 +193,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		// 404 error
 		if err != nil {
 			res := s.HandleNotFoundRequest()
+			fmt.Println("404 error; Closing connection")
 			_ = res.Write(conn)
 			_ = conn.Close()
 			return
@@ -215,8 +220,15 @@ func (s *Server) HandleConnection(conn net.Conn) {
 func (s *Server) HandleCloseRequest() (res *Response) {
 	res = &Response{}
 	res.HandleOK()
-	res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
+	res.FilePath = ""
 
+	return res
+}
+
+func (s *Server) HandleBadRequest() (res *Response) {
+	res = &Response{}
+	res.HandleBadRequest()
+	res.FilePath = ""
 	return res
 }
 
@@ -234,7 +246,7 @@ func (s *Server) HandleNotFoundRequest() (res *Response) {
 	res = &Response{}
 	res.HandleNotFound()
 	// res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
-
+	res.Headers[CONNECTION] = "close"
 	return res
 }
 
@@ -263,7 +275,8 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 	}
 	req.Method, req.URL, req.Proto, err = parseRequestLine(line)
 	if err != nil {
-		return nil, badStringError("malformed start line", line)
+		fmt.Print("Malformed start line error: ", err.Error())
+		return nil, badStringError("malformed start line", err.Error())
 	}
 
 	if !validMethod(req.Method) {
@@ -296,7 +309,7 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 			}
 			req.Headers[strings.ToLower(key)] = strings.ToLower(value)
 		}
-		fmt.Println("Read line from request", line)
+		// fmt.Println("Read line from request", line)
 	}
 
 	return req, nil
@@ -341,15 +354,20 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 		return notFoundError("HostNotFoundError: Host not present in DocRoot. Host: ", host)
 	}
 
-	filelocation := s.VirtualHosts[host] + filepath.Clean(url)
+	filelocation := s.VirtualHosts[req.Host] + "/" + url
 	fmt.Printf("Location is: %s\n", filelocation)
 	info, err := os.Stat(filelocation)
 	if os.IsNotExist(err) {
-		s.HandleNotFoundRequest()
+		res = s.HandleNotFoundRequest()
 		return notFoundError("HostNotFoundError: File Not Found. ", filelocation)
+	}
+	if !strings.HasPrefix(filelocation, s.DocRoot) {
+		res = s.HandleBadRequest()
+		return notFoundError("IllegalAccessError: URL trying to access files outside of docroot. ", filelocation)
 	}
 	if info.IsDir() {
 		filelocation = filelocation + "index.html"
+		fmt.Print("Given directory, appending index.html ", filelocation)
 		info, err = os.Stat(filelocation)
 	}
 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())

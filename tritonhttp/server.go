@@ -251,6 +251,9 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 	var line string
 	for {
 		line, err = ReadLine(br)
+		if errors.Is(err, io.EOF) {
+			return nil, err
+		}
 		if err != nil {
 			return req, invalidHeaderError("Error while parsing request ", err.Error())
 		}

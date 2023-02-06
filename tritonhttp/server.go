@@ -244,11 +244,20 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 	req.init()
 
 	// Read start line
-	line, err := ReadLine(br)
-	if err != nil {
-		return nil, err
+	// line, err := ReadLine(br)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	var line string
+	for {
+		line, err = ReadLine(br)
+		if err != nil {
+			return req, invalidHeaderError("Error while parsing request ", err.Error())
+		}
+		if line != "" {
+			break
+		}
 	}
-
 	req.Method, req.URL, req.Proto, err = parseRequestLine(line)
 	if err != nil {
 		return nil, badStringError("malformed start line", line)

@@ -1,0 +1,5 @@
+foobar
+Host: website1
+Connection: close
+User-Agent: gotest
+

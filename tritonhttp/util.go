@@ -2,6 +2,9 @@ package tritonhttp
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
+	"io"
 	"mime"
 	"net/textproto"
 	"strings"
@@ -46,9 +49,13 @@ func ReadLine(br *bufio.Reader) (string, error) {
 	var line string
 	for {
 		s, err := br.ReadString('\n')
+		if errors.Is(err, io.EOF) {
+			return "", nil
+		}
 		line += s
 		// Return the error
 		if err != nil {
+			fmt.Printf("Error occurred while reading line %s\nError %s", line, err.Error())
 			return line, err
 		}
 		// Return the line when reaching line end

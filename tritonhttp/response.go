@@ -56,7 +56,7 @@ func (res *Response) HandleBadRequest() {
 func (res *Response) init() {
 	res.Proto = responseProto
 	res.Headers = make(map[string]string)
-	res.Body = ""
+	res.Body = "NULL"
 	res.Headers[DATE] = FormatTime(time.Now())
 }
 

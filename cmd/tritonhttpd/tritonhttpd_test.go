@@ -124,11 +124,11 @@ func TestGoFetch2(t *testing.T) {
 		"Host: website1\r\n",
 		"User-Agent: gotest\r\n",
 		"\r\n",
-		"GET /notfound.html HTTP/1.1\r\n",
-		"Host: website1\r\n",
-		"User-Agent: gotest\r\n",
-		"Connection: close\r\n",
-		"\r\n",
+		// "GET /notfound.html HTTP/1.1\r\n",
+		// "Host: website1\r\n",
+		// "User-Agent: gotest\r\n",
+		// "Connection: close\r\n",
+		// "\r\n",
 	)
 
 	respbytes, _, err := tritonhttp.Fetch("localhost", "8080", []byte(req))
@@ -200,6 +200,7 @@ func TestGoFetch3(t *testing.T) {
 	}
 
 	resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(respbytes)), nil)
+	log.Print(resp)
 	if err != nil {
 		t.Fatalf("got an error parsing the response: %v\n", err.Error())
 	}

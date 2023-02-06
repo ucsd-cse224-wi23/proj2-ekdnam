@@ -123,6 +123,29 @@ func (s *Server) HandleConnection(conn net.Conn) {
 
 		// Read next request from the client
 		req, err := ReadRequest(br)
+		if err != nil {
+			fmt.Println("Error while reading request")
+			log.Printf(err.Error())
+			log.Printf("Handle bad request for error - Read request")
+			res := &Response{}
+			res.HandleBadRequest()
+			_ = res.Write(conn)
+			_ = conn.Close()
+			return
+		}
+		err = req.processHeader()
+		if err != nil {
+			fmt.Println("Error while processing header")
+			log.Printf(err.Error())
+			log.Printf("Handle bad request for error - Process header")
+			res := &Response{}
+			res.HandleBadRequest()
+			_ = res.Write(conn)
+			_ = conn.Close()
+			return
+		}
+		prettyPrintReq(req)
+
 		// Handle EOF
 		if errors.Is(err, io.EOF) {
 			log.Printf("Connection closed by %v", conn.RemoteAddr())
@@ -130,15 +153,6 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			return
 		}
 
-		if err != nil {
-			log.Printf(err.Error())
-			log.Printf("Handle bad request for error")
-			res := &Response{}
-			res.HandleBadRequest()
-			_ = res.Write(conn)
-			_ = conn.Close()
-			return
-		}
 		// timeout in this application means we just close the connection
 		// Note : proj3 might require you to do a bit more here
 		if err, ok := err.(net.Error); ok && err.Timeout() {
@@ -147,8 +161,6 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			return
 		}
 
-		err = req.processHeader()
-
 		if err != nil {
 			log.Printf(err.Error())
 			log.Printf("Handle bad request for error")
@@ -158,7 +170,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			_ = conn.Close()
 			return
 		}
-		prettyPrintReq(req)
+
 		// if req.Close {
 		// 	fmt.Print("`Connection: close` header encountered\nClosing connection\n")
 		// 	res := s.HandleCloseRequest()
@@ -170,6 +182,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		// 	conn.Close()
 		// 	return
 		// }
+
 		// Handle the request which is not a GET and immediately close the connection and return
 		if err != nil {
 			log.Printf("Handle bad request for error: %v", err)

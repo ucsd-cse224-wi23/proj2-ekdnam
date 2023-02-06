@@ -55,7 +55,7 @@ func (res *Response) HandleBadRequest() {
 func (res *Response) init() {
 	res.Proto = responseProto
 	res.Headers = make(map[string]string)
-	res.Body = ""
+	res.Body = "NULL"
 	res.Headers[DATE] = FormatTime(time.Now())
 }
 
@@ -64,7 +64,7 @@ func (res *Response) Write(w io.Writer) error {
 
 	statusLine := fmt.Sprintf("%v %v %v\r\n", res.Proto, res.StatusCode, statusText[res.StatusCode])
 	serializedResponse := fmt.Sprintf(statusLine + res.generateResponseHeaders())
-	if res.Body != "" {
+	if res.Body != "NULL" {
 		serializedResponse += "\r\n" + res.Body + "\r\n"
 	}
 	fmt.Printf("Serialized Response: \n%s\n", serializedResponse)

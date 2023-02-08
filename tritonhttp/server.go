@@ -48,13 +48,14 @@ type Server struct {
 
 func (s *Server) init() {
 	s.DocRoot = "docroot_dirs"
+	fmt.Println(s.VirtualHosts)
 }
 func (s *Server) ListenAndServe() error {
 	// Validate the configuration of the server
 	s.init()
-	if err := s.ValidateServerSetup(); err != nil {
-		return fmt.Errorf("server is not setup correctly %v", err)
-	}
+	// if err := s.ValidateServerSetup(); err != nil {
+	// 	return fmt.Errorf("server is not setup correctly %v", err)
+	// }
 	fmt.Println("Server setup valid!")
 
 	// server should now start to listen on the configured address
@@ -83,20 +84,20 @@ func (s *Server) ListenAndServe() error {
 	}
 }
 
-func (s *Server) ValidateServerSetup() error {
-	// Validating the doc root of the server
-	fi, err := os.Stat(s.DocRoot)
+// func (s *Server) ValidateServerSetup() error {
+// 	// Validating the doc root of the server
+// 	fi, err := os.Stat(s.DocRoot)
 
-	if os.IsNotExist(err) {
-		return err
-	}
+// 	if os.IsNotExist(err) {
+// 		return err
+// 	}
 
-	if !fi.IsDir() {
-		return fmt.Errorf("doc root %q is not a directory", s.DocRoot)
-	}
+// 	if !fi.IsDir() {
+// 		return fmt.Errorf("doc root %q is not a directory", s.DocRoot)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func prettyPrintReq(request *Request) {
 	empJSON, err := json.MarshalIndent(*request, "", "  ")
@@ -348,35 +349,53 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Request = req
 
 	host := req.Host
-	url := req.URL
+	// url := req.URL
 
 	if _, ok := s.VirtualHosts[host]; !ok {
 		return notFoundError("HostNotFoundError: Host not present in DocRoot. Host: ", host)
 	}
 
-	filelocation := s.VirtualHosts[req.Host] + "/" + url
-	fmt.Printf("Location is: %s\n", filelocation)
+	// filelocation := s.VirtualHosts[req.Host] + "/" + url
+	filelocation := fmt.Sprint(s.VirtualHosts[host], req.URL)
+	fmt.Printf("Filelocation is: %s\n", filelocation)
 	info, err := os.Stat(filelocation)
+	if !os.IsNotExist(err) {
+		if info.IsDir() {
+			filelocation = filelocation + "index.html"
+			info, err = os.Stat(filelocation)
+		}
+		res.Headers["Content-Length"] = fmt.Sprint(info.Size())
+		res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
+		res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
+		res.FilePath = filelocation
+		body, _ := os.ReadFile(filelocation)
+		res.Body = string(body)
+
+		return nil
+	}
 	if os.IsNotExist(err) {
+		fmt.Println("Not exist error", filelocation)
 		res = s.HandleNotFoundRequest()
 		return notFoundError("HostNotFoundError: File Not Found. ", filelocation)
 	}
+
+	// if info.IsDir() {
+	// 	fmt.Print("Given directory, appending index.html ", filelocation)
+	// 	info, err = os.Stat(filelocation)
+	// 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
+	// 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
+	// 	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
+	// 	res.FilePath = filelocation
+	// 	body, _ := os.ReadFile(filelocation)
+	// 	res.Body = string(body)
+
+	// 	return nil
+	// }
 	if !strings.HasPrefix(filelocation, s.DocRoot) {
+		fmt.Println("Error withURL not found")
 		res = s.HandleBadRequest()
 		return notFoundError("IllegalAccessError: URL trying to access files outside of docroot. ", filelocation)
 	}
-	if info.IsDir() {
-		filelocation = filelocation + "index.html"
-		fmt.Print("Given directory, appending index.html ", filelocation)
-		info, err = os.Stat(filelocation)
-	}
-	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
-	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
-	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
-	res.FilePath = filelocation
-	body, err := os.ReadFile(filelocation)
-	res.Body = string(body)
-
 	return nil
 }
 

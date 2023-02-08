@@ -1,0 +1,451 @@
+Running tool: /usr/local/go/bin/go test -timeout 30s -run ^TestAllFilesInHtdocs$ cse224/cmd/tritonhttpd
+
+2023/02/07 23:40:32 /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd
+map[website1:../../docroot_dirs/htdocs1 website2:../../docroot_dirs/htdocs2 website3:../../docroot_dirs/htdocs3]
+Server setup valid!
+Listening on [::]:8080
+accepted connection [::1]:51674
+Request {
+  "Method": "GET",
+  "URL": "/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website3",
+    "user-agent": "gotest"
+  },
+  "Host": "website3",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs3/index.html
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website3",
+      "user-agent": "gotest"
+    },
+    "Host": "website3",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51675
+Request {
+  "Method": "GET",
+  "URL": "/.DS_Store",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs1/.DS_Store
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/.DS_Store",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51676
+Request {
+  "Method": "GET",
+  "URL": "/UCSD_Seal.png",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs1/UCSD_Seal.png
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/UCSD_Seal.png",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51677
+Request {
+  "Method": "GET",
+  "URL": "/hidden/empty.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs1/hidden/empty.html
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/hidden/empty.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51678
+Request {
+  "Method": "GET",
+  "URL": "/hidden/large.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs1/hidden/large.html
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/hidden/large.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51679
+Request {
+  "Method": "GET",
+  "URL": "/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs1/index.html
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51680
+Request {
+  "Method": "GET",
+  "URL": "/kitten.jpg",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs1/kitten.jpg
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/kitten.jpg",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51681
+Request {
+  "Method": "GET",
+  "URL": "/subdir/.DS_Store",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs1/subdir/.DS_Store
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/subdir/.DS_Store",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51682
+Request {
+  "Method": "GET",
+  "URL": "/subdir/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs1/subdir/index.html
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/subdir/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51683
+Request {
+  "Method": "GET",
+  "URL": "/subdir/subsubdir/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs1/subdir/subsubdir/index.html
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/subdir/subsubdir/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:51684
+Request {
+  "Method": "GET",
+  "URL": "/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website2",
+    "user-agent": "gotest"
+  },
+  "Host": "website2",
+  "Close": true
+}
+Filelocation is: ../../docroot_dirs/htdocs2/index.html
+Error withURL not found
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Wed, 08 Feb 2023 07:40:32 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website2",
+      "user-agent": "gotest"
+    },
+    "Host": "website2",
+    "Close": true
+  },
+  "FilePath": "",
+  "Body": ""
+}
+404 error; Closing connection
+--- FAIL: TestAllFilesInHtdocs (0.01s)
+    /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:77: /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd
+    --- FAIL: TestAllFilesInHtdocs//index.html (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//.DS_Store (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//UCSD_Seal.png (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//hidden/empty.html (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//hidden/large.html (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//index.html#01 (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//kitten.jpg (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//subdir/.DS_Store (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//subdir/index.html (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//subdir/subsubdir/index.html (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//index.html#02 (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:290: Expected response code of 200 but got: 404
+FAIL
+FAIL	cse224/cmd/tritonhttpd	0.144s
+FAIL

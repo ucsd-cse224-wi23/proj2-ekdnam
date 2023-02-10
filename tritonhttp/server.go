@@ -349,7 +349,13 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Request = req
 
 	host := req.Host
-	// url := req.URL
+	url := req.URL
+
+	if strings.HasPrefix(url, "/../") {
+		fmt.Println("Error withURL not found")
+		res = s.HandleBadRequest()
+		return notFoundError("IllegalAccessError: URL trying to access files outside of docroot. ", url)
+	}
 
 	if _, ok := s.VirtualHosts[host]; !ok {
 		return notFoundError("HostNotFoundError: Host not present in DocRoot. Host: ", host)

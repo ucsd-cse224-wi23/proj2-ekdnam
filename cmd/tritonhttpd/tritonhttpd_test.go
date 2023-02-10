@@ -239,6 +239,28 @@ func TestGoFetch4(t *testing.T) {
 	}
 }
 
+func TestGoFetch5(t *testing.T) {
+	launchhttpd(t)
+
+	req := fmt.Sprint("Hello /subdir/notfound HTTP/1.1\r\n"+
+		"Host: website1\r\n",
+		"\r\n")
+
+	respbytes, _, err := tritonhttp.Fetch("localhost", "8080", []byte(req))
+	if err != nil {
+		t.Fatalf("Error fetching request: %v\n", err.Error())
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(respbytes)), nil)
+	if err != nil {
+		t.Fatalf("got an error parsing the response: %v\n", err.Error())
+	}
+
+	if resp.StatusCode != 400 {
+		t.Fatalf("Expected response code of 400 but got: %v\n", resp.StatusCode)
+	}
+}
+
 func TestAllFilesInHtdocs(t *testing.T) {
 	launchhttpd(t)
 

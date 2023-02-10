@@ -1,0 +1,2 @@
+GET /../htdocs2/index.html HTTP/1.1
+host: website1

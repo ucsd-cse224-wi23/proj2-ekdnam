@@ -109,7 +109,7 @@ func (res *Response) generateResponseHeaders() string {
 	for _, k := range keys {
 		headerValue, ok := res.Headers[k]
 		if ok {
-			line += fmt.Sprintf(k + ":" + headerValue + "\r\n")
+			line += fmt.Sprintf(k + ": " + headerValue + "\r\n")
 		}
 	}
 	return line

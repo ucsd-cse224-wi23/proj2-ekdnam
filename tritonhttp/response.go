@@ -49,6 +49,7 @@ func (res *Response) HandleClose() {
 func (res *Response) HandleBadRequest() {
 	res.init()
 	res.StatusCode = statusBadRequest
+	res.StatusText = statusText[statusBadRequest]
 	res.FilePath = ""
 	res.Headers[CONNECTION] = "close"
 }
@@ -117,4 +118,5 @@ func (res *Response) generateResponseHeaders() string {
 func (res *Response) HandleNotFound() {
 	res.init()
 	res.StatusCode = statusNotFound
+	res.Headers[CONNECTION] = "close"
 }

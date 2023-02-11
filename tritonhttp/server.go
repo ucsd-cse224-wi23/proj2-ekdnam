@@ -221,15 +221,12 @@ func (s *Server) HandleConnection(conn net.Conn) {
 func (s *Server) HandleCloseRequest() (res *Response) {
 	res = &Response{}
 	res.HandleOK()
-	res.FilePath = ""
-
 	return res
 }
 
 func (s *Server) HandleBadRequest() (res *Response) {
 	res = &Response{}
 	res.HandleBadRequest()
-	res.FilePath = ""
 	return res
 }
 
@@ -237,8 +234,6 @@ func (s *Server) HandleBadRequest() (res *Response) {
 func (s *Server) HandleGoodRequest() (res *Response) {
 	res = &Response{}
 	res.HandleOK()
-	// res.FilePath = filepath.Join(s.DocRoot, res.Request.URL)
-
 	return res
 }
 
@@ -246,8 +241,6 @@ func (s *Server) HandleGoodRequest() (res *Response) {
 func (s *Server) HandleNotFoundRequest() (res *Response) {
 	res = &Response{}
 	res.HandleNotFound()
-	// res.FilePath = filepath.Join(s.DocRoot, "hello-world.txt")
-	res.Headers[CONNECTION] = "close"
 	return res
 }
 
@@ -262,17 +255,24 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 	// 	return nil, err
 	// }
 	var line string
-	for {
-		line, err = ReadLine(br)
-		if errors.Is(err, io.EOF) {
-			return nil, err
-		}
-		if err != nil {
-			return req, invalidHeaderError("Error while parsing request ", err.Error())
-		}
-		if line != "" {
-			break
-		}
+	// for {
+	// 	line, err = ReadLine(br)
+	// 	if errors.Is(err, io.EOF) {
+	// 		return nil, err
+	// 	}
+	// 	if err != nil {
+	// 		return req, invalidHeaderError("Error while parsing request ", err.Error())
+	// 	}
+	// 	if line != "" {
+	// 		break
+	// 	}
+	// }
+	line, err = ReadLine(br)
+	if errors.Is(err, io.EOF) {
+		return nil, err
+	}
+	if err != nil {
+		return req, invalidHeaderError("Error while parsing request ", err.Error())
 	}
 	req.Method, req.URL, req.Proto, err = parseRequestLine(line)
 	if err != nil {

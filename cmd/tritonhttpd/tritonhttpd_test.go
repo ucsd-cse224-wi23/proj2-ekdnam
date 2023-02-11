@@ -261,6 +261,121 @@ func TestGoFetch5(t *testing.T) {
 	}
 }
 
+func TestGoFetch6(t *testing.T) {
+	launchhttpd(t)
+
+	req := fmt.Sprint("GET / HTTP/1.1\r\n",
+		"Host: website1\r\n",
+		"User-Agent: gotest\r\n",
+		"\r\n",
+		"GET / HTTP/1.1\r\n",
+		"Host: website1\r\n",
+		"User-Agent: gotest\r\n",
+		"\r\n",
+		"GET / HTTP/1.1\r\n",
+		"Host: website1\r\n",
+		"User-Agent: gotest\r\n",
+		"\r\n",
+	)
+
+	respbytes, _, err := tritonhttp.Fetch("localhost", "8080", []byte(req))
+	if err != nil {
+		t.Fatalf("Error fetching request: %v\n", err.Error())
+	}
+	respreader := bufio.NewReader(bytes.NewReader(respbytes))
+
+	// response 1
+	resp, err := http.ReadResponse(respreader, nil)
+	log.Print(resp)
+	if err != nil {
+		t.Fatalf("got an error parsing the response: %v\n", err.Error())
+	}
+
+	if resp.Proto != "HTTP/1.1" {
+		t.Fatalf("Expected HTTP/1.1 but got a version: %v\n", resp.Proto)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected response code of 200 but got: %v\n", resp.StatusCode)
+	}
+
+	if resp.ContentLength != 377 {
+		t.Fatalf("Expected content length of 377 but got: %v\n", resp.ContentLength)
+	}
+
+	indexbytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Error reading response body: %v\n", err.Error())
+	}
+
+	if len(indexbytes) != int(resp.ContentLength) {
+		t.Fatalf("Response body of length %v was not equal to content length of %v\n",
+			len(indexbytes), int(resp.ContentLength))
+	}
+
+	resp.Body.Close()
+
+	// response 2
+	resp, err = http.ReadResponse(respreader, nil)
+	log.Print(resp)
+	if err != nil {
+		t.Fatalf("got an error parsing the response: %v\n", err.Error())
+	}
+
+	if resp.Proto != "HTTP/1.1" {
+		t.Fatalf("Expected HTTP/1.1 but got a version: %v\n", resp.Proto)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected response code of 200 but got: %v\n", resp.StatusCode)
+	}
+
+	if resp.ContentLength != 377 {
+		t.Fatalf("Expected content length of 377 but got: %v\n", resp.ContentLength)
+	}
+
+	indexbytes, err = io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Error reading response body: %v\n", err.Error())
+	}
+
+	if len(indexbytes) != int(resp.ContentLength) {
+		t.Fatalf("Response body of length %v was not equal to content length of %v\n",
+			len(indexbytes), int(resp.ContentLength))
+	}
+
+	// response 3
+	resp, err = http.ReadResponse(respreader, nil)
+	log.Print(resp)
+	if err != nil {
+		t.Fatalf("got an error parsing the response: %v\n", err.Error())
+	}
+
+	if resp.Proto != "HTTP/1.1" {
+		t.Fatalf("Expected HTTP/1.1 but got a version: %v\n", resp.Proto)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected response code of 200 but got: %v\n", resp.StatusCode)
+	}
+
+	if resp.ContentLength != 377 {
+		t.Fatalf("Expected content length of 377 but got: %v\n", resp.ContentLength)
+	}
+
+	indexbytes, err = io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Error reading response body: %v\n", err.Error())
+	}
+
+	if len(indexbytes) != int(resp.ContentLength) {
+		t.Fatalf("Response body of length %v was not equal to content length of %v\n",
+			len(indexbytes), int(resp.ContentLength))
+	}
+
+	resp.Body.Close()
+}
+
 func TestAllFilesInHtdocs(t *testing.T) {
 	launchhttpd(t)
 

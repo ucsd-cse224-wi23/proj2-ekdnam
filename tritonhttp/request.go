@@ -1,6 +1,9 @@
 package tritonhttp
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 type Request struct {
 	Method string // e.g. "GET"
@@ -35,7 +38,7 @@ func (req *Request) processHeader() (err error) {
 	_, ok = req.Headers[CONNECTION]
 	if ok {
 		val := req.Headers[CONNECTION]
-		if val == "close" {
+		if strings.ToLower(val) == "close" {
 			req.Close = true
 		} else {
 			return invalidHeaderError("InvalidHeader: `Connection` key in Header has invalid value. Allowed: close, actual: ", req.Headers[CONNECTION])

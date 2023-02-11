@@ -25,6 +25,7 @@ const (
 	HOST       = "host"
 	CONNECTION = "connection"
 	DATE       = "Date"
+	PROTO      = "HTTP/1.1"
 
 	// LAYOUT = "01 02 2006 15:04:05"
 )
@@ -244,6 +245,12 @@ func (s *Server) HandleNotFoundRequest() (res *Response) {
 	return res
 }
 
+func validProto(proto string) bool {
+	if proto != PROTO {
+		return false
+	}
+	return true
+}
 func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 	req = &Request{}
 
@@ -283,7 +290,9 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 	if !validMethod(req.Method) {
 		return nil, badStringError("invalid method", req.Method)
 	}
-
+	if !validProto(req.Proto) {
+		return nil, invalidHeaderError("Protocol is wrong. Expected HTTP/1.1, got: ", req.Proto)
+	}
 	for {
 		line, err := ReadLine(br)
 		if err != nil {

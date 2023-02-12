@@ -118,7 +118,7 @@ func prettyPrintRes(response *Response) {
 
 // HandleConnection reads requests from the accepted conn and handles them.
 func (s *Server) HandleConnection(conn net.Conn) {
-	br := bufio.NewReader(conn)
+	br := bufio.NewReaderSize(conn, 4096)
 	for {
 		// Set timeout
 		if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {

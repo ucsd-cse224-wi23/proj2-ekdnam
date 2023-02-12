@@ -66,7 +66,7 @@ func (res *Response) getStatusLine() string {
 }
 
 func (res *Response) Write(w io.Writer) error {
-	bw := bufio.NewWriter(w)
+	bw := bufio.NewWriterSize(w, 4096)
 
 	statusLine := res.getStatusLine()
 	headers := res.generateResponseHeaders()
@@ -80,16 +80,6 @@ func (res *Response) Write(w io.Writer) error {
 			return err
 		}
 	}
-
-	// serializedResponse := fmt.Sprintf(statusLine + res.generateResponseHeaders())
-	// if res.Body != "" {
-	// 	serializedResponse += "\r\n" + res.Body
-	// }
-	// serializedResponse += "\r\n"
-	// fmt.Printf("Serialized Response: \n%s\n", serializedResponse)
-	// if _, err := bw.WriteString(serializedResponse); err != nil {
-	// 	return err
-	// }
 
 	if err := bw.Flush(); err != nil {
 		return err

@@ -197,8 +197,8 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			res := s.HandleNotFoundRequest()
 			fmt.Println("404 error; Closing connection")
 			_ = res.Write(conn)
-			_ = conn.Close()
-			return
+			// _ = conn.Close()
+			// return
 		}
 		err = res.Write(conn)
 		if err != nil {

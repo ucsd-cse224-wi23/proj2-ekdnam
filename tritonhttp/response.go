@@ -108,5 +108,5 @@ func (res *Response) generateResponseHeaders() string {
 func (res *Response) HandleNotFound() {
 	res.init()
 	res.StatusCode = statusNotFound
-	res.Headers[CONNECTION] = "close"
+	// res.Headers[CONNECTION] = "close"
 }

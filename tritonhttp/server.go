@@ -132,8 +132,9 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		// Handle EOF
 		if errors.Is(err, io.EOF) {
 			log.Printf("Connection closed by %v", conn.RemoteAddr())
-			_ = conn.Close()
-			return
+			// _ = conn.Close()
+			// return
+			continue
 		}
 
 		if err != nil {
@@ -165,18 +166,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			return
 		}
 		prettyPrintReq(req)
-		// if req.Close {
-		// 	fmt.Print("`Connection: close` header encountered\nClosing connection\n")
-		// 	res := s.HandleCloseRequest()
-		// 	prettyPrintRes(res)
-		// 	err = res.Write(conn)
-		// 	if err != nil {
-		// 		fmt.Println(err)
-		// 	}
-		// 	conn.Close()
-		// 	return
-		// }
-		// Handle the request which is not a GET and immediately close the connection and return
+
 		if err != nil {
 			log.Printf("Handle bad request for error: %v", err)
 			res := &Response{}
@@ -186,8 +176,6 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			_ = conn.Close()
 			return
 		}
-		// Handle good request
-		// log.Printf("Handle good request: %v", string(empJSON))
 
 		res := s.HandleGoodRequest()
 		err = s.parseAndGenerateResponse(req, res)
@@ -197,18 +185,12 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			res := s.HandleNotFoundRequest()
 			fmt.Println("404 error; Closing connection")
 			_ = res.Write(conn)
-			// _ = conn.Close()
-			// return
 		}
 		err = res.Write(conn)
 		if err != nil {
 			fmt.Println(err)
 		}
 		if req.Close {
-			err = res.Write(conn)
-			if err != nil {
-				fmt.Println(err)
-			}
 			conn.Close()
 			return
 		}
@@ -256,24 +238,8 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 
 	req.init()
 
-	// Read start line
-	// line, err := ReadLine(br)
-	// if err != nil {
-	// 	return nil, err
-	// }
 	var line string
-	// for {
-	// 	line, err = ReadLine(br)
-	// 	if errors.Is(err, io.EOF) {
-	// 		return nil, err
-	// 	}
-	// 	if err != nil {
-	// 		return req, invalidHeaderError("Error while parsing request ", err.Error())
-	// 	}
-	// 	if line != "" {
-	// 		break
-	// 	}
-	// }
+
 	line, err = ReadLine(br)
 	if errors.Is(err, io.EOF) {
 		return nil, err

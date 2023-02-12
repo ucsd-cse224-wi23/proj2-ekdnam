@@ -109,19 +109,11 @@ func prettyPrintReq(request *Request) {
 }
 
 func prettyPrintRes(response *Response) {
-	tmp := "."
-	if len(response.Body) > 200 {
-		tmp = response.Body
-		response.Body = "."
-	}
 	empJSON, err := json.MarshalIndent(*response, "", "  ")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 	fmt.Printf("Response %s\n", string(empJSON))
-	if tmp != "." {
-		response.Body = tmp
-	}
 }
 
 // HandleConnection reads requests from the accepted conn and handles them.
@@ -253,9 +245,11 @@ func (s *Server) HandleNotFoundRequest() (res *Response) {
 	return res
 }
 
-// check if proto is HTTP/1.1
 func validProto(proto string) bool {
-	return proto == PROTO
+	if proto != PROTO {
+		return false
+	}
+	return true
 }
 func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 	req = &Request{}
@@ -367,54 +361,73 @@ func docrootCheck(path string, docroot string) bool {
 	dir := filepath.Dir(path)
 	return dir == docroot
 }
+
 func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Request = req
 
-	docroot, ok := s.VirtualHosts[req.Host]
-	if !ok {
-		res = s.HandleBadRequest()
-		return invalidHeaderError("Docroot not present, ", docroot)
+	// host := req.Host
+	// url := req.URL
+
+	// if strings.HasPrefix(url, "/../") {
+	// 	fmt.Println("Error withURL not found")
+	// 	res = s.HandleBadRequest()
+	// 	return notFoundError("IllegalAccessError: URL trying to access files outside of docroot. ", url)
+	// }
+
+	if _, ok := s.VirtualHosts[req.Host]; !ok {
+		return notFoundError("HostNotFoundError: Host not present in DocRoot. Host: ", req.Host)
 	}
-	filePath := docroot
-	if req.URL[0] != '/' {
-		res = s.HandleBadRequest()
-		return invalidHeaderError("Invalid URL: URL not beginning with `/`", req.URL)
-	}
-	if req.URL[len(req.URL)-1] == '/' {
-		filePath += req.URL + "index.html"
-	} else {
-		filePath += req.URL
-	}
-	res.FilePath = filepath.Clean(filePath)
-	present := docrootCheck(res.FilePath, docroot)
-	if present == false {
-		res = s.HandleBadRequest()
-		return invalidHeaderError("Docroot not present, ", docroot)
-	}
-	info, err := os.Stat(res.FilePath)
+
+	// filelocation := s.VirtualHosts[req.Host] + "/" + url
+	// if req.URL[len(req.URL)-1] == '/' {
+	// 	req.URL += "index.html"
+	// }
+	filelocation := fmt.Sprint(s.VirtualHosts[req.Host], req.URL)
+	fmt.Printf("Filelocation is: %s\n", filelocation)
+	filelocation = filepath.Clean(filelocation)
+	// present := docrootCheck(filelocation, s.VirtualHosts[req.Host])
+	// if present == false {
+	// 	res = s.HandleBadRequest()
+	// 	return invalidHeaderError("Docroot not present, ", s.VirtualHosts[req.Host])
+	// }
+	info, err := os.Stat(filelocation)
 	if !os.IsNotExist(err) {
 		if info.IsDir() {
-			if res.FilePath[len(res.FilePath)-1] != '/' {
-				res.FilePath += "/index.html"
-			} else {
-				res.FilePath += "index.html"
-			}
+			filelocation = filelocation + "index.html"
+			info, err = os.Stat(filelocation)
 		}
-		info, err = os.Stat(res.FilePath)
+		res.Headers["Content-Length"] = fmt.Sprint(info.Size())
+		res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
+		res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
+		res.FilePath = filelocation
+		body, _ := os.ReadFile(filelocation)
+		res.Body = string(body)
+
+		return nil
 	}
 	if os.IsNotExist(err) {
+		fmt.Println("Not exist error", filelocation)
 		res = s.HandleNotFoundRequest()
-		return notFoundError("File not found: ", res.FilePath)
-	} else if err != nil {
-		res = s.HandleBadRequest()
-		return invalidHeaderError("Docroot not present, ", fmt.Sprintf("Docroot check: "+fmt.Sprint(present)+" Error in stat: "+err.Error()))
+		return notFoundError("HostNotFoundError: File Not Found. ", filelocation)
 	}
-	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
-	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
-	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(res.FilePath))
-	body, _ := os.ReadFile(res.FilePath)
-	res.Body = string(body)
 
+	// if info.IsDir() {
+	// 	fmt.Print("Given directory, appending index.html ", filelocation)
+	// 	info, err = os.Stat(filelocation)
+	// 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
+	// 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
+	// 	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
+	// 	res.FilePath = filelocation
+	// 	body, _ := os.ReadFile(filelocation)
+	// 	res.Body = string(body)
+
+	// 	return nil
+	// }
+	if !strings.HasPrefix(filelocation, s.DocRoot) {
+		fmt.Println("Error withURL not found")
+		res = s.HandleBadRequest()
+		return notFoundError("IllegalAccessError: URL trying to access files outside of docroot. ", filelocation)
+	}
 	return nil
 }
 

@@ -1,0 +1,353 @@
+Running tool: /usr/local/go/bin/go test -timeout 30s -run ^TestAllFilesInHtdocs$ cse224/cmd/tritonhttpd
+
+2023/02/11 16:22:15 /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd
+map[website1:../../docroot_dirs/htdocs1 website2:../../docroot_dirs/htdocs2 website3:../../docroot_dirs/htdocs3]
+Server setup valid!
+Listening on [::]:8080
+accepted connection [::1]:53753
+Request {
+  "Method": "GET",
+  "URL": "/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website2",
+    "user-agent": "gotest"
+  },
+  "Host": "website2",
+  "Close": true
+}
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Content-Length": "186",
+    "Content-Type": "text/html; charset=utf-8",
+    "Date": "Sun, 12 Feb 2023 00:22:15 GMT",
+    "Last-Modified": "Sat, 04 Feb 2023 08:38:22 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website2",
+      "user-agent": "gotest"
+    },
+    "Host": "website2",
+    "Close": true
+  },
+  "FilePath": "../../docroot_dirs/htdocs2/index.html",
+  "Body": "\u003chtml\u003e\n\n\u003chead\u003e\n    \u003ctitle\u003eBasic index file for website 2\u003c/title\u003e\n\u003c/head\u003e\n\n\u003cbody\u003e\n    \u003ch1\u003eThis is a basic index file for website 2\u003c/h1\u003e\n    You can use this for testing.\n\u003c/body\u003e\n\n\u003c/html\u003e\n"
+}
+accepted connection [::1]:53754
+Request {
+  "Method": "GET",
+  "URL": "/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website3",
+    "user-agent": "gotest"
+  },
+  "Host": "website3",
+  "Close": true
+}
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Content-Length": "186",
+    "Content-Type": "text/html; charset=utf-8",
+    "Date": "Sun, 12 Feb 2023 00:22:15 GMT",
+    "Last-Modified": "Sat, 04 Feb 2023 08:38:22 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website3",
+      "user-agent": "gotest"
+    },
+    "Host": "website3",
+    "Close": true
+  },
+  "FilePath": "../../docroot_dirs/htdocs3/index.html",
+  "Body": "\u003chtml\u003e\n\n\u003chead\u003e\n    \u003ctitle\u003eBasic index file for website 3\u003c/title\u003e\n\u003c/head\u003e\n\n\u003cbody\u003e\n    \u003ch1\u003eThis is a basic index file for website 3\u003c/h1\u003e\n    You can use this for testing.\n\u003c/body\u003e\n\n\u003c/html\u003e\n"
+}
+accepted connection [::1]:53755
+Request {
+  "Method": "GET",
+  "URL": "/UCSD_Seal.png",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Content-Length": "637155",
+    "Content-Type": "image/png",
+    "Date": "Sun, 12 Feb 2023 00:22:15 GMT",
+    "Last-Modified": "Sat, 04 Feb 2023 08:38:22 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/UCSD_Seal.png",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "../../docroot_dirs/htdocs1/UCSD_Seal.png",
+  "Body": "."
+}
+accepted connection [::1]:53756
+Request {
+  "Method": "GET",
+  "URL": "/hidden/empty.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Sun, 12 Feb 2023 00:22:15 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/hidden/empty.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "../../docroot_dirs/htdocs1/hidden/empty.html",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:53757
+Request {
+  "Method": "GET",
+  "URL": "/hidden/large.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Sun, 12 Feb 2023 00:22:15 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/hidden/large.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "../../docroot_dirs/htdocs1/hidden/large.html",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:53758
+Request {
+  "Method": "GET",
+  "URL": "/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Content-Length": "377",
+    "Content-Type": "text/html; charset=utf-8",
+    "Date": "Sun, 12 Feb 2023 00:22:15 GMT",
+    "Last-Modified": "Sat, 04 Feb 2023 08:38:22 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "../../docroot_dirs/htdocs1/index.html",
+  "Body": "."
+}
+accepted connection [::1]:53759
+Request {
+  "Method": "GET",
+  "URL": "/kitten.jpg",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Content-Length": "145459",
+    "Content-Type": "image/jpeg",
+    "Date": "Sun, 12 Feb 2023 00:22:15 GMT",
+    "Last-Modified": "Sat, 04 Feb 2023 08:38:22 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/kitten.jpg",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "../../docroot_dirs/htdocs1/kitten.jpg",
+  "Body": "."
+}
+accepted connection [::1]:53760
+Request {
+  "Method": "GET",
+  "URL": "/subdir/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Sun, 12 Feb 2023 00:22:15 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/subdir/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "../../docroot_dirs/htdocs1/subdir/index.html",
+  "Body": ""
+}
+404 error; Closing connection
+accepted connection [::1]:53761
+Request {
+  "Method": "GET",
+  "URL": "/subdir/subsubdir/index.html",
+  "Proto": "HTTP/1.1",
+  "Headers": {
+    "connection": "close",
+    "host": "website1",
+    "user-agent": "gotest"
+  },
+  "Host": "website1",
+  "Close": true
+}
+Response {
+  "Proto": "HTTP/1.1",
+  "StatusCode": 200,
+  "StatusText": "OK",
+  "Headers": {
+    "Date": "Sun, 12 Feb 2023 00:22:15 GMT"
+  },
+  "Request": {
+    "Method": "GET",
+    "URL": "/subdir/subsubdir/index.html",
+    "Proto": "HTTP/1.1",
+    "Headers": {
+      "connection": "close",
+      "host": "website1",
+      "user-agent": "gotest"
+    },
+    "Host": "website1",
+    "Close": true
+  },
+  "FilePath": "../../docroot_dirs/htdocs1/subdir/subsubdir/index.html",
+  "Body": ""
+}
+404 error; Closing connection
+--- FAIL: TestAllFilesInHtdocs (0.02s)
+    /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:77: /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd
+    --- FAIL: TestAllFilesInHtdocs//hidden/empty.html (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:427: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//hidden/large.html (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:427: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//subdir/index.html (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:427: Expected response code of 200 but got: 404
+    --- FAIL: TestAllFilesInHtdocs//subdir/subsubdir/index.html (0.00s)
+        /Users/ekdnam/Documents/WI23/224/hw/proj2-ekdnam/cmd/tritonhttpd/tritonhttpd_test.go:427: Expected response code of 200 but got: 404
+FAIL
+FAIL	cse224/cmd/tritonhttpd	0.390s
+FAIL

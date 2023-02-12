@@ -24,24 +24,21 @@ func (req *Request) init() {
 
 func (req *Request) processHeader() (err error) {
 	if req.URL[0] != '/' {
-		return invalidHeaderError("InvalidHeader: Request URL should start with `/`, but URL is ", req.URL)
+		return myError("InvalidHeader: Request URL should start with `/`, but URL is ", req.URL)
 	}
 	_, ok := req.Headers[HOST]
 	if !ok {
 		b, err := json.Marshal(req.Headers)
 		if err != nil {
-			return invalidHeaderError("InvalidHeader: Does contain `host` field & header cannot be converted to JSON", "")
+			return myError("InvalidHeader: Does contain `host` field & header cannot be converted to JSON", "")
 		}
-		return invalidHeaderError("InvalidHeader: Does not contain `host` field", string(b))
+		return myError("InvalidHeader: Does not contain `host` field", string(b))
 	}
 	req.Host = req.Headers[HOST]
-	_, ok = req.Headers[CONNECTION]
+	val, ok := req.Headers[CONNECTION]
 	if ok {
-		val := req.Headers[CONNECTION]
 		if strings.ToLower(val) == "close" {
 			req.Close = true
-		} else {
-			return invalidHeaderError("InvalidHeader: `Connection` key in Header has invalid value. Allowed: close, actual: ", req.Headers[CONNECTION])
 		}
 	}
 

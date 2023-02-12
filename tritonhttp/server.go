@@ -47,6 +47,17 @@ type Server struct {
 	VirtualHosts map[string]string
 }
 
+func checkInDocroot(path string, docroot string) bool {
+	dir := path
+	for dir != "." {
+		dir = filepath.Dir(dir)
+		if dir == docroot {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) init() {
 	s.DocRoot = "docroot_dirs"
 	fmt.Println(s.VirtualHosts)
@@ -85,21 +96,6 @@ func (s *Server) ListenAndServe() error {
 	}
 }
 
-// func (s *Server) ValidateServerSetup() error {
-// 	// Validating the doc root of the server
-// 	fi, err := os.Stat(s.DocRoot)
-
-// 	if os.IsNotExist(err) {
-// 		return err
-// 	}
-
-// 	if !fi.IsDir() {
-// 		return fmt.Errorf("doc root %q is not a directory", s.DocRoot)
-// 	}
-
-// 	return nil
-// }
-
 func prettyPrintReq(request *Request) {
 	empJSON, err := json.MarshalIndent(*request, "", "  ")
 	if err != nil {
@@ -132,7 +128,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		// Handle EOF
 		if errors.Is(err, io.EOF) {
 			log.Printf("Connection closed by %v", conn.RemoteAddr())
-			// _ = conn.Close()
+			_ = conn.Close()
 			// return
 			continue
 		}
@@ -154,28 +150,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			return
 		}
 
-		err = req.processHeader()
-
-		if err != nil {
-			log.Printf(err.Error())
-			log.Printf("Handle bad request for error")
-			res := &Response{}
-			res.HandleBadRequest()
-			_ = res.Write(conn)
-			_ = conn.Close()
-			return
-		}
 		prettyPrintReq(req)
-
-		if err != nil {
-			log.Printf("Handle bad request for error: %v", err)
-			res := &Response{}
-			res.HandleBadRequest()
-			prettyPrintRes(res)
-			_ = res.Write(conn)
-			_ = conn.Close()
-			return
-		}
 
 		res := s.HandleGoodRequest()
 		err = s.parseAndGenerateResponse(req, res)
@@ -245,19 +220,19 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 		return nil, err
 	}
 	if err != nil {
-		return req, invalidHeaderError("Error while parsing request ", err.Error())
+		return req, myError("Error while parsing request ", err.Error())
 	}
 	req.Method, req.URL, req.Proto, err = parseRequestLine(line)
 	if err != nil {
 		fmt.Print("Malformed start line error: ", err.Error())
-		return nil, badStringError("malformed start line", err.Error())
+		return nil, myError("malformed start line", err.Error())
 	}
 
 	if !validMethod(req.Method) {
-		return nil, badStringError("invalid method", req.Method)
+		return nil, myError("invalid method", req.Method)
 	}
 	if !validProto(req.Proto) {
-		return nil, invalidHeaderError("Protocol is wrong. Expected HTTP/1.1, got: ", req.Proto)
+		return nil, myError("Protocol is wrong. Expected HTTP/1.1, got: ", req.Proto)
 	}
 	for {
 		line, err := ReadLine(br)
@@ -269,26 +244,26 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 			break
 		}
 		if !strings.Contains(line, ":") {
-			return req, invalidHeaderError("InvalidHeader: Header does not contain colon", line)
+			return req, myError("InvalidHeader: Header does not contain colon", line)
 		} else {
 			fields := strings.SplitN(line, ":", 2)
 			if len(fields) != 2 {
-				return req, invalidHeaderFieldQuantityMismatchError("InvalidHeader: Header does not contain two colon-separated values %v", line)
+				return req, myError("InvalidHeader: Header does not contain two colon-separated values %v", line)
 			}
 			key := strings.TrimSpace(fields[0])
 			if strings.Contains(key, " ") {
-				return req, invalidHeaderError("InvalidHeader: key in header has whitespace", line)
+				return req, myError("InvalidHeader: key in header has whitespace", line)
 			}
 			value := strings.TrimSpace(fields[1])
 			if strings.Contains(value, " ") {
-				return req, invalidHeaderError("InvalidHeader: value in header has whitespace", line)
+				return req, myError("InvalidHeader: value in header has whitespace", line)
 			}
 			req.Headers[strings.ToLower(key)] = strings.ToLower(value)
 		}
 		// fmt.Println("Read line from request", line)
 	}
-
-	return req, nil
+	err = req.processHeader()
+	return req, err
 }
 
 // parseRequestLine parses "GET /foo HTTP/1.1" into its individual parts.
@@ -304,23 +279,7 @@ func validMethod(method string) bool {
 	return method == "GET"
 }
 
-func badStringError(what, val string) error {
-	return fmt.Errorf("%s %q", what, val)
-}
-
-func notFoundError(what, val string) error {
-	return fmt.Errorf("%s %q", what, val)
-}
-
-func invalidHeaderError(what, val string) error {
-	return fmt.Errorf("%s %q", what, val)
-}
-
-func invalidHeaderFieldQuantityMismatchError(what, val string) error {
-	return fmt.Errorf("%s %q", what, val)
-}
-
-func badError(what, val string) error {
+func myError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
 
@@ -328,7 +287,7 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Request = req
 
 	if _, ok := s.VirtualHosts[req.Host]; !ok {
-		return notFoundError("HostNotFoundError: Host not present in DocRoot. Host: ", req.Host)
+		return myError("HostmyError: Host not present in DocRoot. Host: ", req.Host)
 	}
 
 	filelocation := fmt.Sprint(s.VirtualHosts[req.Host], req.URL)
@@ -345,10 +304,10 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	if os.IsNotExist(err) {
 		fmt.Println("Not exist error", filelocation)
 		res = s.HandleNotFoundRequest()
-		return notFoundError("HostNotFoundError: File Not Found. ", filelocation)
+		return myError("HostmyError: File Not Found. ", filelocation)
 	} else if err != nil {
 		res = s.HandleBadRequest()
-		return badError("unexpected error occurred: ", err.Error())
+		return myError("unexpected error occurred: ", err.Error())
 	}
 	fmt.Printf("Filelocation is: %s\n", filelocation)
 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())

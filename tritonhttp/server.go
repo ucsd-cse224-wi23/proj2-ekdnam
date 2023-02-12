@@ -26,7 +26,7 @@ const (
 	CONNECTION = "connection"
 	DATE       = "Date"
 	PROTO      = "HTTP/1.1"
-
+	MAXSIZE    = 10000
 	// LAYOUT = "01 02 2006 15:04:05"
 )
 
@@ -118,7 +118,7 @@ func prettyPrintRes(response *Response) {
 
 // HandleConnection reads requests from the accepted conn and handles them.
 func (s *Server) HandleConnection(conn net.Conn) {
-	br := bufio.NewReaderSize(conn, 4096)
+	br := bufio.NewReaderSize(conn, MAXSIZE)
 	for {
 		// Set timeout
 		if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {

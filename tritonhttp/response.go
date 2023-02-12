@@ -66,7 +66,7 @@ func (res *Response) getStatusLine() string {
 }
 
 func (res *Response) Write(w io.Writer) error {
-	bw := bufio.NewWriterSize(w, 4096)
+	bw := bufio.NewWriterSize(w, MAXSIZE)
 
 	statusLine := res.getStatusLine()
 	headers := res.generateResponseHeaders()

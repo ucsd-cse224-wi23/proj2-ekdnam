@@ -354,112 +354,46 @@ func invalidHeaderFieldQuantityMismatchError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
 
-func docrootCheck(path string, docroot string) bool {
-	if path == "." {
-		return false
-	}
-	dir := filepath.Dir(path)
-	return dir == docroot
+func badError(what, val string) error {
+	return fmt.Errorf("%s %q", what, val)
 }
 
 func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Request = req
 
-	// host := req.Host
-	// url := req.URL
-
-	// if strings.HasPrefix(url, "/../") {
-	// 	fmt.Println("Error withURL not found")
-	// 	res = s.HandleBadRequest()
-	// 	return notFoundError("IllegalAccessError: URL trying to access files outside of docroot. ", url)
-	// }
-
 	if _, ok := s.VirtualHosts[req.Host]; !ok {
 		return notFoundError("HostNotFoundError: Host not present in DocRoot. Host: ", req.Host)
 	}
 
-	// filelocation := s.VirtualHosts[req.Host] + "/" + url
-	// if req.URL[len(req.URL)-1] == '/' {
-	// 	req.URL += "index.html"
-	// }
 	filelocation := fmt.Sprint(s.VirtualHosts[req.Host], req.URL)
-	fmt.Printf("Filelocation is: %s\n", filelocation)
+
 	filelocation = filepath.Clean(filelocation)
-	// present := docrootCheck(filelocation, s.VirtualHosts[req.Host])
-	// if present == false {
-	// 	res = s.HandleBadRequest()
-	// 	return invalidHeaderError("Docroot not present, ", s.VirtualHosts[req.Host])
-	// }
+
 	info, err := os.Stat(filelocation)
 	if !os.IsNotExist(err) {
 		if info.IsDir() {
-			filelocation = filelocation + "index.html"
+			filelocation = filelocation + "/index.html"
 			info, err = os.Stat(filelocation)
 		}
-		res.Headers["Content-Length"] = fmt.Sprint(info.Size())
-		res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
-		res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
-		res.FilePath = filelocation
-		body, _ := os.ReadFile(filelocation)
-		res.Body = string(body)
-
-		return nil
 	}
 	if os.IsNotExist(err) {
 		fmt.Println("Not exist error", filelocation)
 		res = s.HandleNotFoundRequest()
 		return notFoundError("HostNotFoundError: File Not Found. ", filelocation)
-	}
-
-	// if info.IsDir() {
-	// 	fmt.Print("Given directory, appending index.html ", filelocation)
-	// 	info, err = os.Stat(filelocation)
-	// 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
-	// 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
-	// 	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
-	// 	res.FilePath = filelocation
-	// 	body, _ := os.ReadFile(filelocation)
-	// 	res.Body = string(body)
-
-	// 	return nil
-	// }
-	if !strings.HasPrefix(filelocation, s.DocRoot) {
-		fmt.Println("Error withURL not found")
+	} else if err != nil {
 		res = s.HandleBadRequest()
-		return notFoundError("IllegalAccessError: URL trying to access files outside of docroot. ", filelocation)
+		return badError("unexpected error occurred: ", err.Error())
 	}
+	fmt.Printf("Filelocation is: %s\n", filelocation)
+	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
+	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
+	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
+	res.FilePath = filelocation
+	body, _ := os.ReadFile(filelocation)
+	res.Body = string(body)
+
 	return nil
 }
-
-// CanonicalHeaderKey returns the canonical format of the
-// header key s. The canonicalization converts the first
-// letter and any letter following a hyphen to upper case;
-// the rest are converted to lowercase. For example, the
-// canonical key for "content-type" is "Content-Type".
-// You should store header keys in the canonical format
-// in internal data structures.
-// func CanonicalHeaderKey(s string) string {
-// 	return textproto.CanonicalMIMEHeaderKey(s)
-// }
-
-// // FormatTime formats time according to the HTTP spec.
-// // It is like time.RFC1123 but hard-codes GMT as the time zone.
-// // You should use this function for the "Date" and "Last-Modified"
-// // headers.
-// func FormatTime(t time.Time) string {
-// 	s := t.UTC().Format(time.RFC1123)
-// 	s = s[:len(s)-3] + "GMT"
-// 	return s
-// }
-
-// // MIMETypeByExtension returns the MIME type associated with the
-// // file extension ext. The extension ext should begin with a
-// // leading dot, as in ".html". When ext has no associated type,
-// // MIMETypeByExtension returns "".
-// // You should use this function for the "Content-Type" header.
-// func MIMETypeByExtension(ext string) string {
-// 	return mime.TypeByExtension(ext)
-// }
 
 // ReadLine reads a single line ending with "\r\n" from br,
 // striping the "\r\n" line end from the returned string.

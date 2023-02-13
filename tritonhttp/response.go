@@ -98,7 +98,7 @@ func (res *Response) generateResponseHeaders() string {
 	}
 	sort.Strings(keys)
 	fmt.Println("Header keys: ", keys)
-	fmt.Println("Headers from response: ", res.Headers)
+	// fmt.Println("Headers from response: ", res.Headers)
 	for _, k := range keys {
 		headerValue, ok := res.Headers[k]
 		if ok {

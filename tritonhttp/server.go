@@ -105,11 +105,20 @@ func prettyPrintReq(request *Request) {
 }
 
 func prettyPrintRes(response *Response) {
+	tmp := ""
+	if len(response.Body) > 0 {
+		tmp = response.Body
+		response.Body = ""
+	}
 	empJSON, err := json.MarshalIndent(*response, "", "  ")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
+	if tmp != "" {
+		response.Body = tmp
+	}
 	fmt.Printf("Response %s\n", string(empJSON))
+
 }
 
 // HandleConnection reads requests from the accepted conn and handles them.
@@ -160,7 +169,10 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		prettyPrintRes(res)
 		// 404 error
 		if err != nil {
-			// res := s.HandleNotFoundRequest()
+			res := s.HandleNotFoundRequest()
+			if req.Close {
+				res.Headers["Connection"] = "close"
+			}
 			_ = res.Write(conn)
 			if req.Close {
 				err = conn.Close()

@@ -1,5 +1,9 @@
-GET /un HTTP/1.1
+GET / HTTP/1.1
 Host: website1
-Connection: close
 User-Agent: gotest
+
+GET /notfound.html HTTP/1.1
+Host: website1
+User-Agent: gotest
+Connection: close
 

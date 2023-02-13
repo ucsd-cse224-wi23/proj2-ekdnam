@@ -70,6 +70,7 @@ func (res *Response) Write(w io.Writer) error {
 
 	statusLine := res.getStatusLine()
 	headers := res.generateResponseHeaders()
+	fmt.Printf("Headers: %s", headers)
 	_, err := w.Write([]byte(statusLine + headers + "\r\n"))
 	if err != nil {
 		return err
@@ -96,6 +97,8 @@ func (res *Response) generateResponseHeaders() string {
 		idx += 1
 	}
 	sort.Strings(keys)
+	fmt.Println("Header keys: ", keys)
+	fmt.Println("Headers from response: ", res.Headers)
 	for _, k := range keys {
 		headerValue, ok := res.Headers[k]
 		if ok {

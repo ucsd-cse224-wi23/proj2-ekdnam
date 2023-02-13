@@ -160,14 +160,14 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		prettyPrintRes(res)
 		// 404 error
 		if err != nil {
-			res := s.HandleNotFoundRequest()
-			fmt.Println("404 error; Closing connection")
+			// res := s.HandleNotFoundRequest()
 			_ = res.Write(conn)
 			if req.Close {
 				err = conn.Close()
 				if err != nil {
-					fmt.Println("Error while closinf connection")
+					fmt.Println("Error while closing connection")
 				}
+				return
 			}
 		}
 		err = res.Write(conn)
@@ -214,7 +214,9 @@ func (s *Server) HandleGoodRequest() (res *Response) {
 // HTTP/1.1 404 Not Found
 func (s *Server) HandleNotFoundRequest() (res *Response) {
 	res = &Response{}
-	res.HandleNotFound()
+	res.init()
+	res.StatusCode = statusNotFound
+	res.StatusText = statusText[statusNotFound]
 	return res
 }
 
@@ -300,8 +302,10 @@ func myError(what, val string) error {
 }
 
 func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
-	res.Request = req
-
+	// res.Request = req
+	if req.Close {
+		res.Headers[CONNECTION] = "close"
+	}
 	if _, ok := s.VirtualHosts[req.Host]; !ok {
 		return myError("HostmyError: Host not present in DocRoot. Host: ", req.Host)
 	}
@@ -329,9 +333,6 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
 	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
-	if req.Close {
-		res.Headers[CONNECTION] = "close"
-	}
 	res.FilePath = filelocation
 	body, _ := os.ReadFile(filelocation)
 	res.Body = string(body)

@@ -358,6 +358,9 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
 	res.Headers["Content-Type"] = MIMETypeByExtension(filelocation[strings.LastIndex(filelocation, "."):])
+	if res.Headers["Content-Type"] == "" {
+		res.Headers["Content-Type"] = filelocation
+	}
 	res.FilePath = filelocation
 	body, _ := os.ReadFile(filelocation)
 	res.Body = string(body)

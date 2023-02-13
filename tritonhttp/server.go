@@ -329,10 +329,16 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 		res.Headers[CONNECTION] = "close"
 	}
 	if _, ok := s.VirtualHosts[req.Host]; !ok {
+		res.StatusCode = statusBadRequest
+		res.StatusText = statusText[statusBadRequest]
+		res.Headers[CONNECTION] = "close"
 		return myError("HostmyError: Host not present in DocRoot. Host: ", req.Host)
 	}
 
-	filelocation := fmt.Sprint(s.VirtualHosts[req.Host], req.URL)
+	if strings.HasSuffix(req.URL, "/") {
+		req.URL += "index.html"
+	}
+	filelocation := s.VirtualHosts[req.Host] + req.URL
 
 	filelocation = filepath.Clean(filelocation)
 
@@ -342,19 +348,15 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 			filelocation = filelocation + "/index.html"
 			info, err = os.Stat(filelocation)
 		}
-	}
-	if os.IsNotExist(err) {
+	} else {
 		fmt.Println("Not exist error", filelocation)
 		res = s.HandleNotFoundRequest()
 		return myError("HostmyError: File Not Found. ", filelocation)
-	} else if err != nil {
-		res = s.HandleBadRequest()
-		return myError("unexpected error occurred: ", err.Error())
 	}
 	fmt.Printf("Filelocation is: %s\n", filelocation)
 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
-	res.Headers["Content-Type"] = strings.Split(MIMETypeByExtension(filelocation[strings.LastIndex(filelocation, "."):]), ";")[0]
+	res.Headers["Content-Type"] = MIMETypeByExtension(filelocation[strings.LastIndex(filelocation, "."):])
 	res.FilePath = filelocation
 	body, _ := os.ReadFile(filelocation)
 	res.Body = string(body)

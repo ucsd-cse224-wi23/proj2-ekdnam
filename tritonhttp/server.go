@@ -134,13 +134,6 @@ func (s *Server) HandleConnection(conn net.Conn) {
 
 		// Read next request from the client
 		req, bytes, err := ReadRequest(br)
-		// Handle EOF
-		if errors.Is(err, io.EOF) {
-			log.Printf("Connection closed by %v", conn.RemoteAddr())
-			// _ = conn.Close()
-			// return
-			continue
-		}
 
 		// timeout in this application means we just close the connection
 		// Note : proj3 might require you to do a bit more here
@@ -157,6 +150,14 @@ func (s *Server) HandleConnection(conn net.Conn) {
 				_ = conn.Close()
 			}
 			return
+		}
+
+		// Handle EOF
+		if errors.Is(err, io.EOF) {
+			log.Printf("Connection closed by %v", conn.RemoteAddr())
+			// _ = conn.Close()
+			// return
+			continue
 		}
 
 		if err != nil {

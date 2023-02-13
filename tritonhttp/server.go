@@ -357,7 +357,8 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	fmt.Printf("Filelocation is: %s\n", filelocation)
 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
-	res.Headers["Content-Type"] = MIMETypeByExtension(filelocation[strings.LastIndex(filelocation, "."):])
+	contenttype := MIMETypeByExtension(filelocation[strings.LastIndex(filelocation, "."):])
+	res.Headers["Content-Type"] = strings.Split(contenttype, ";")[0]
 	if res.Headers["Content-Type"] == "" {
 		res.Headers["Content-Type"] = filelocation
 	}

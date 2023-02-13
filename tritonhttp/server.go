@@ -178,13 +178,20 @@ func (s *Server) HandleConnection(conn net.Conn) {
 // HTTP/1.1 200 OK | Connection close
 func (s *Server) HandleCloseRequest() (res *Response) {
 	res = &Response{}
-	res.HandleOK()
+	res.init()
+	res.StatusCode = statusOK
+	res.StatusText = statusText[statusOK]
+	res.Headers[CONNECTION] = "close"
 	return res
 }
 
 func (s *Server) HandleBadRequest() (res *Response) {
 	res = &Response{}
-	res.HandleBadRequest()
+	res.init()
+	res.StatusCode = statusBadRequest
+	res.StatusText = statusText[statusBadRequest]
+	res.FilePath = ""
+	res.Headers[CONNECTION] = "close"
 	return res
 }
 
@@ -313,6 +320,9 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
 	res.Headers["Content-Type"] = MIMETypeByExtension(filepath.Ext(filelocation))
+	if req.Close {
+		res.Headers[CONNECTION] = "close"
+	}
 	res.FilePath = filelocation
 	body, _ := os.ReadFile(filelocation)
 	res.Body = string(body)

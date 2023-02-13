@@ -133,13 +133,30 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		}
 
 		// Read next request from the client
-		req, err := ReadRequest(br)
+		req, bytes, err := ReadRequest(br)
 		// Handle EOF
 		if errors.Is(err, io.EOF) {
 			log.Printf("Connection closed by %v", conn.RemoteAddr())
-			_ = conn.Close()
+			// _ = conn.Close()
 			// return
 			continue
+		}
+
+		// timeout in this application means we just close the connection
+		// Note : proj3 might require you to do a bit more here
+		if err, ok := err.(net.Error); ok && err.Timeout() {
+			if !bytes {
+				log.Printf("Connection to %v timed out", conn.RemoteAddr())
+				_ = conn.Close()
+			} else {
+				res := s.HandleBadRequest()
+				err := res.Write(conn)
+				if err != nil {
+					fmt.Printf(err.Error())
+				}
+				_ = conn.Close()
+			}
+			return
 		}
 
 		if err != nil {
@@ -148,13 +165,6 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			res := &Response{}
 			res.HandleBadRequest()
 			_ = res.Write(conn)
-			_ = conn.Close()
-			return
-		}
-		// timeout in this application means we just close the connection
-		// Note : proj3 might require you to do a bit more here
-		if err, ok := err.(net.Error); ok && err.Timeout() {
-			log.Printf("Connection to %v timed out", conn.RemoteAddr())
 			_ = conn.Close()
 			return
 		}
@@ -238,7 +248,7 @@ func validProto(proto string) bool {
 	}
 	return true
 }
-func ReadRequest(br *bufio.Reader) (req *Request, err error) {
+func ReadRequest(br *bufio.Reader) (req *Request, bytes bool, err error) {
 	req = &Request{}
 
 	req.init()
@@ -247,53 +257,53 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 
 	line, err = ReadLine(br)
 	if errors.Is(err, io.EOF) {
-		return nil, err
+		return nil, false, err
 	}
 	if err != nil {
-		return req, myError("Error while parsing request ", err.Error())
+		return req, false, myError("Error while parsing request ", err.Error())
 	}
 	req.Method, req.URL, req.Proto, err = parseRequestLine(line)
 	if err != nil {
 		fmt.Print("Malformed start line error: ", err.Error())
-		return nil, myError("malformed start line", err.Error())
+		return nil, true, myError("malformed start line", err.Error())
 	}
 
 	if !validMethod(req.Method) {
-		return nil, myError("invalid method", req.Method)
+		return nil, true, myError("invalid method", req.Method)
 	}
 	if !validProto(req.Proto) {
-		return nil, myError("Protocol is wrong. Expected HTTP/1.1, got: ", req.Proto)
+		return nil, true, myError("Protocol is wrong. Expected HTTP/1.1, got: ", req.Proto)
 	}
 	for {
 		line, err := ReadLine(br)
 		if err != nil {
-			return nil, err
+			return nil, true, err
 		}
 		if line == "" {
 			// This marks header end
 			break
 		}
 		if !strings.Contains(line, ":") {
-			return req, myError("InvalidHeader: Header does not contain colon", line)
+			return req, true, myError("InvalidHeader: Header does not contain colon", line)
 		} else {
 			fields := strings.SplitN(line, ":", 2)
 			if len(fields) != 2 {
-				return req, myError("InvalidHeader: Header does not contain two colon-separated values %v", line)
+				return req, true, myError("InvalidHeader: Header does not contain two colon-separated values %v", line)
 			}
-			key := strings.TrimSpace(fields[0])
+			key := CanonicalHeaderKey(strings.TrimSpace(fields[0]))
 			if strings.Contains(key, " ") {
-				return req, myError("InvalidHeader: key in header has whitespace", line)
+				return req, true, myError("InvalidHeader: key in header has whitespace", line)
 			}
 			value := strings.TrimSpace(fields[1])
 			if strings.Contains(value, " ") {
-				return req, myError("InvalidHeader: value in header has whitespace", line)
+				return req, true, myError("InvalidHeader: value in header has whitespace", line)
 			}
 			req.Headers[key] = strings.ToLower(value)
 		}
 		// fmt.Println("Read line from request", line)
 	}
 	err = req.processHeader()
-	return req, err
+	return req, true, err
 }
 
 // parseRequestLine parses "GET /foo HTTP/1.1" into its individual parts.

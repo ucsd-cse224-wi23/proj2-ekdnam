@@ -1,3 +1,4 @@
 GET /subdir/subsubdir/../../hidden/empty.html HTTP/1.1
 host: website1
+Connection: close
 

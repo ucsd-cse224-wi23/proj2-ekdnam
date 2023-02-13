@@ -23,7 +23,7 @@ const (
 	statusBadRequest       = 400
 
 	HOST       = "host"
-	CONNECTION = "connection"
+	CONNECTION = "Connection"
 	DATE       = "Date"
 	PROTO      = "HTTP/1.1"
 	MAXSIZE    = 10000
@@ -154,14 +154,14 @@ func (s *Server) HandleConnection(conn net.Conn) {
 
 		res := s.HandleGoodRequest()
 		err = s.parseAndGenerateResponse(req, res)
+		if req.Close {
+			res.Headers["Connection"] = "close"
+		}
 		prettyPrintRes(res)
 		// 404 error
 		if err != nil {
 			res := s.HandleNotFoundRequest()
 			fmt.Println("404 error; Closing connection")
-			if req.Close {
-				res.Headers[CONNECTION] = "close"
-			}
 			_ = res.Write(conn)
 			if req.Close {
 				err = conn.Close()
@@ -274,7 +274,7 @@ func ReadRequest(br *bufio.Reader) (req *Request, err error) {
 			if strings.Contains(value, " ") {
 				return req, myError("InvalidHeader: value in header has whitespace", line)
 			}
-			req.Headers[strings.ToLower(key)] = strings.ToLower(value)
+			req.Headers[key] = strings.ToLower(value)
 		}
 		// fmt.Println("Read line from request", line)
 	}

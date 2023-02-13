@@ -22,7 +22,7 @@ const (
 	statusNotFound         = 404
 	statusBadRequest       = 400
 
-	HOST       = "host"
+	HOST       = "Host"
 	CONNECTION = "Connection"
 	DATE       = "Date"
 	PROTO      = "HTTP/1.1"

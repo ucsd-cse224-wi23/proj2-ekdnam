@@ -129,7 +129,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 			log.Printf("Failed to set timeout for connection %v", conn)
 			_ = conn.Close()
-			return
+			break
 		}
 
 		// Read next request from the client
@@ -150,7 +150,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 				_ = conn.Close()
 			} else {
 				res := s.HandleBadRequest()
-				err := res.Write(conn)
+				err := res.Write(conn, conn)
 				if err != nil {
 					fmt.Printf(err.Error())
 				}
@@ -164,7 +164,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			log.Printf("Handle bad request for error")
 			res := &Response{}
 			res.HandleBadRequest()
-			_ = res.Write(conn)
+			_ = res.Write(conn, conn)
 			_ = conn.Close()
 			return
 		}
@@ -183,7 +183,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			if req.Close {
 				res.Headers["Connection"] = "close"
 			}
-			_ = res.Write(conn)
+			_ = res.Write(conn, conn)
 			if req.Close {
 				err = conn.Close()
 				if err != nil {
@@ -192,14 +192,15 @@ func (s *Server) HandleConnection(conn net.Conn) {
 				return
 			}
 		}
-		err = res.Write(conn)
+		err = res.Write(conn, conn)
 		if err != nil {
 			fmt.Println(err)
-		}
-		if req.Close {
 			conn.Close()
-			return
 		}
+		// if req.Close {
+		// 	conn.Close()
+		// 	return
+		// }
 
 		// We'll never close the connection and handle as many requests for this connection and pass on this
 		// responsibility to the timeout mechanism

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net"
 	"sort"
 	"time"
 )
@@ -65,7 +66,7 @@ func (res *Response) getStatusLine() string {
 	return fmt.Sprintf("%v %v %v\r\n", res.Proto, res.StatusCode, statusText[res.StatusCode])
 }
 
-func (res *Response) Write(w io.Writer) error {
+func (res *Response) Write(w io.Writer, conn net.Conn) error {
 	bw := bufio.NewWriterSize(w, MAXSIZE)
 
 	statusLine := res.getStatusLine()
@@ -78,12 +79,20 @@ func (res *Response) Write(w io.Writer) error {
 	if res.StatusCode == 200 {
 		_, err := w.Write([]byte(res.Body))
 		if err != nil {
+			_ = conn.Close()
 			return err
 		}
 	}
 
 	if err := bw.Flush(); err != nil {
+		_ = conn.Close()
 		return err
+	}
+	if res.Headers[CONNECTION] == "close" {
+		err = conn.Close()
+		if err != nil {
+			return myError("error while closing connection, ", err.Error())
+		}
 	}
 	return nil
 }

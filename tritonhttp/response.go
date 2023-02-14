@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/fs"
+	"log"
 	"mime"
 	"net"
 	"os"
@@ -63,20 +65,32 @@ func (res *Response) init() {
 	res.ContentLength = -1
 }
 
+func checkFileLocation(filelocation string, req *Request) string {
+	filelocation += req.URL
+	if strings.HasSuffix(req.URL, "/") {
+		filelocation = req.URL + "index.html"
+	}
+	return filelocation
+}
+
+func (res *Response) goodRequestHeaders(filelocfinal string, info fs.FileInfo, body []byte) {
+	res.ContentLength = int(info.Size())
+	res.LastModified = FormatTime(info.ModTime())
+	res.Body = string(body)
+	res.ContentType = mime.TypeByExtension(filepath.Ext(filelocfinal))
+	res.StatusCode = statusOK
+	res.StatusText = statusText[statusOK]
+}
+
 func (res *Response) HandleGoodRequest(req *Request, virtualHosts map[string]string) {
 
 	res.Request = req
-
 	res.init()
+
 	if req.Close {
 		res.Connection = true
 	}
-	filelocation := ""
-	if strings.HasSuffix(req.URL, "/") {
-		filelocation = req.URL + "index.html"
-	} else {
-		filelocation = req.URL
-	}
+	filelocation := checkFileLocation("", req)
 
 	docroot, ok := virtualHosts[req.Host]
 
@@ -88,16 +102,16 @@ func (res *Response) HandleGoodRequest(req *Request, virtualHosts map[string]str
 		filelocfinal = filepath.Clean(filelocfinal)
 
 		if strings.Contains("../", filelocfinal) {
-			wrong = true
+			log.Println("exit from docroot")
 		}
 
 		info, err := os.Stat(filelocfinal)
 
 		if os.IsNotExist(err) {
 			fmt.Println(myError("FileNotFoundError: ", filelocfinal))
-			wrong = true
+			log.Println("Not exist")
 		} else if info.IsDir() {
-			wrong = true
+			log.Println("Directory")
 		} else {
 			body, err := os.ReadFile(filelocfinal)
 			if err != nil {
@@ -105,10 +119,8 @@ func (res *Response) HandleGoodRequest(req *Request, virtualHosts map[string]str
 				res.Connection = true
 				return
 			}
-			res.ContentLength = int(info.Size())
-			res.LastModified = FormatTime(info.ModTime())
-			res.Body = string(body)
-			res.ContentType = mime.TypeByExtension(filepath.Ext(filelocfinal))
+
+			res.goodRequestHeaders(filelocfinal, info, body)
 		}
 
 	} else {
@@ -118,8 +130,7 @@ func (res *Response) HandleGoodRequest(req *Request, virtualHosts map[string]str
 		return
 	}
 	if !wrong {
-		res.StatusCode = statusOK
-		res.StatusText = statusText[statusOK]
+		log.Println("All good")
 	}
 }
 

@@ -48,15 +48,26 @@ type Server struct {
 	VirtualHosts map[string]string
 }
 
-func checkInDocroot(path string, docroot string) bool {
-	dir := path
-	for dir != "." {
-		dir = filepath.Dir(dir)
-		if dir == docroot {
-			return true
+// ReadLine reads a single line ending with "\r\n" from br,
+// striping the "\r\n" line end from the returned string.
+// If any error occurs, data read before the error is also returned.
+// You might find this function useful in parsing requests.
+func ReadLine(br *bufio.Reader) (string, error) {
+	var line string
+	for {
+		s, err := br.ReadString('\n')
+		line += s
+		// Return the error
+		if err != nil {
+			return line, err
+		}
+		// Return the line when reaching line end
+		if strings.HasSuffix(line, "\r\n") {
+			// Striping the line end
+			line = line[:len(line)-2]
+			return line, nil
 		}
 	}
-	return false
 }
 
 func (s *Server) init() {
@@ -259,9 +270,7 @@ func ReadRequest(br *bufio.Reader) (req *Request, bytes bool, err error) {
 	var line string
 
 	line, err = ReadLine(br)
-	if errors.Is(err, io.EOF) {
-		return nil, false, err
-	}
+
 	if err != nil {
 		return req, false, myError("Error while parsing request ", err.Error())
 	}
@@ -276,6 +285,9 @@ func ReadRequest(br *bufio.Reader) (req *Request, bytes bool, err error) {
 	}
 	if !validProto(req.Proto) {
 		return nil, true, myError("Protocol is wrong. Expected HTTP/1.1, got: ", req.Proto)
+	}
+	if req.URL[0] != '/' {
+		return nil, true, myError("InvalidHeader: Request URL should start with `/`, but URL is ", req.URL)
 	}
 	for {
 		line, err := ReadLine(br)
@@ -305,8 +317,19 @@ func ReadRequest(br *bufio.Reader) (req *Request, bytes bool, err error) {
 		}
 		// fmt.Println("Read line from request", line)
 	}
-	err = req.processHeader()
-	return req, true, err
+	val, ok := req.Headers[CONNECTION]
+	if ok {
+		if strings.ToLower(val) == "close" {
+			req.Close = true
+		}
+	}
+	_, ok = req.Headers[HOST]
+	if !ok {
+		return req, true, myError("InvalidHeader: Does not contain `host` field", "")
+	}
+	req.Host = req.Headers[HOST]
+
+	return req, true, nil
 }
 
 // parseRequestLine parses "GET /foo HTTP/1.1" into its individual parts.
@@ -369,26 +392,4 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 	res.Body = string(body)
 
 	return nil
-}
-
-// ReadLine reads a single line ending with "\r\n" from br,
-// striping the "\r\n" line end from the returned string.
-// If any error occurs, data read before the error is also returned.
-// You might find this function useful in parsing requests.
-func ReadLine(br *bufio.Reader) (string, error) {
-	var line string
-	for {
-		s, err := br.ReadString('\n')
-		line += s
-		// Return the error
-		if err != nil {
-			return line, err
-		}
-		// Return the line when reaching line end
-		if strings.HasSuffix(line, "\r\n") {
-			// Striping the line end
-			line = line[:len(line)-2]
-			return line, nil
-		}
-	}
 }

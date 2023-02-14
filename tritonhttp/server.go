@@ -16,18 +16,24 @@ import (
 
 const (
 	statusOK               = 200
-	statusBR               = 400
-	statusFNF              = 404
+	statusBadRequest       = 400
+	statusNotFound         = 404
 	statusMethodNotAllowed = 405
-	responseProto          = "HTTP/1.1"
-	respContentType        = "text/html"
+
+	HOST        = "Host"
+	CONNECTION  = "Connection"
+	DATE        = "Date"
+	PROTO       = "HTTP/1.1"
+	MAXSIZE     = 10000
+	CONTENTTYPE = "text/html"
+	// LAYOUT = "01 02 2006 15:04:05"
 )
 
 var statusText = map[int]string{
 	statusOK:               "OK",
 	statusMethodNotAllowed: "Method Not Allowed",
-	statusFNF:              "Not Found",
-	statusBR:               "Bad Request",
+	statusNotFound:         "Not Found",
+	statusBadRequest:       "Bad Request",
 }
 
 type Server struct {
@@ -123,28 +129,24 @@ func (s *Server) ValidateServerSetup() error {
 func (s *Server) HandleConnection(conn net.Conn) {
 	br := bufio.NewReader(conn)
 	for {
-		fmt.Println("BEGINNING OF FOR")
 
 		// Set timeout
 		if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 			log.Printf("Failed to set timeout for connection %v", conn)
 			_ = conn.Close()
-			break // SAM C EXIT
+			break
 		}
 
 		// Read next request from the client
-		req, bytesRead, err := ReadRequest(br)
+		req, bytes, err := ReadRequest(br)
 
-		// Handle EOF --- 1. DO WE NEED TO DO ANYTHING HERE? -- CHECK HERE
 		if errors.Is(err, io.EOF) {
 			log.Printf("EOF")
-			// _ = conn.Close()
-			// return
-			continue // SAM C
+			continue
 		}
 
 		if err, ok := err.(net.Error); ok && err.Timeout() {
-			if !bytesRead {
+			if !bytes {
 				log.Printf("Connection to %v timed out", conn.RemoteAddr())
 				_ = conn.Close()
 			} else {
@@ -179,15 +181,12 @@ func (s *Server) HandleConnection(conn net.Conn) {
 				return
 			}
 		}
-
-		// fmt.Println("END OF FOR")
 	}
 }
 
 func ReadRequest(br *bufio.Reader) (req *Request, bytesRead bool, err error) {
 	req = &Request{}
 
-	// Read start line
 	line, err := ReadLine(br)
 	if err != nil {
 		return nil, false, err
@@ -280,7 +279,7 @@ func (res *Response) Write(w io.Writer, conn net.Conn) error {
 	bw := bufio.NewWriter(w)
 	response := convertRespToString(res)
 	fmt.Println("Giving Response")
-	if _, err := bw.WriteString(response); err != nil {
+	if _, err := bw.Write([]byte(response)); err != nil {
 		_ = conn.Close()
 		return err
 	}
@@ -301,9 +300,9 @@ func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
 	res.Request = req
 	res.Date = FormatTime(time.Now())
 
-	res.Proto = responseProto
+	res.Proto = PROTO
 
-	res.ContentType = respContentType
+	res.ContentType = CONTENTTYPE
 	res.ContentLength = -1
 
 	var web_file_dir = ""
@@ -313,17 +312,11 @@ func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
 		web_file_dir = req.URL
 	}
 
-	// fmt.Println(s.VirtualHosts)
-	// fmt.Println(req.Host)
 	base_dir, ok := s.VirtualHosts[req.Host]
-	// base_dir = strings.Replace(base_dir, "../", "", -1)
 
-	res.StatusCode = statusFNF
+	res.StatusCode = statusNotFound
 	noOK := false
 	if ok {
-		// fmt.Println("BASE DIR: ", base_dir, web_file_dir)
-		fmt.Println("base dir: ", base_dir)
-		fmt.Println("web file dir: ", web_file_dir)
 		fullPath := base_dir + web_file_dir
 		fmt.Println("full path requested: ", fullPath)
 		fullPath = filepath.Clean(fullPath)
@@ -331,8 +324,6 @@ func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
 
 		if strings.Contains("../", fullPath) {
 			fmt.Println("../ detected")
-			// res.Connection = true
-			// return res
 			noOK = true
 		}
 
@@ -340,13 +331,9 @@ func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
 
 		if os.IsNotExist(err) {
 			fmt.Println("Is Not Exist Error")
-			// res.Connection = true
-			// return res
 			noOK = true
 		} else if fi.IsDir() {
 			fmt.Println("Is Dir Error")
-			// res.Connection = true
-			// return res
 			noOK = true
 		} else {
 			content, err := os.ReadFile(fullPath)
@@ -362,9 +349,8 @@ func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
 		}
 
 	} else {
-		res.StatusCode = statusBR
+		res.StatusCode = statusBadRequest
 		fmt.Println("No OK Error")
-		// res.Connection = true
 		return res
 	}
 
@@ -406,12 +392,12 @@ func (s *Server) HandleBadRequest(req *Request) (res *Response) {
 
 	res.Request = req
 	res.Date = FormatTime(time.Now())
-	res.Proto = responseProto
+	res.Proto = PROTO
 
 	res.ContentLength = -1
-	res.ContentType = respContentType
+	res.ContentType = CONTENTTYPE
 
-	res.StatusCode = statusBR
+	res.StatusCode = statusBadRequest
 
 	res.Connection = true
 

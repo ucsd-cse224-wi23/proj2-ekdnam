@@ -126,11 +126,7 @@ func (res *Response) HandleGoodRequest(req *Request, virtualHosts map[string]str
 func (res *Response) HandleBadRequest(req *Request) {
 
 	res.Request = req
-	res.Date = FormatTime(time.Now())
-	res.Proto = PROTO
-
-	res.ContentLength = -1
-	res.ContentType = CONTENTTYPE
+	res.init()
 
 	res.StatusCode = statusBadRequest
 	res.StatusText = statusText[statusBadRequest]

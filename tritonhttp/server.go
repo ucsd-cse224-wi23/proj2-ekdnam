@@ -144,7 +144,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		req, bytes, err := ReadRequest(br)
 
 		if errors.Is(err, io.EOF) {
-			log.Printf("End of file encountered")
+			log.Printf("Connection: end of file\n")
 			continue
 		}
 		if err, ok := err.(net.Error); ok && err.Timeout() {
@@ -191,7 +191,7 @@ func ReadRequest(br *bufio.Reader) (req *Request, bytesRead bool, err error) {
 		return nil, false, err
 	}
 	fmt.Print(line + "\n")
-	req.Method, req.Proto, req.URL, err = parseRequestLine(line, req)
+	req.Method, req.URL, req.Proto, err = parseRequestLine(line, req)
 	if err != nil {
 		return nil, true, badStringError("malformed start line", line)
 	}
@@ -232,12 +232,12 @@ func ReadRequest(br *bufio.Reader) (req *Request, bytesRead bool, err error) {
 			return req, true, myError("InvalidHeader: value in header has whitespace", line)
 		}
 		if key == "Host" {
-			req.Host = value
-			host = true
-		} else if key == "Connection" {
 			if value == "close" {
 				req.Close = true
 			}
+		} else if key == "Connection" {
+			req.Host = value
+			host = true
 		}
 	}
 
@@ -253,10 +253,8 @@ func parseRequestLine(line string, req *Request) (string, string, string, error)
 	if len(fields) != 3 {
 		return "", "", "", fmt.Errorf("could not parse the request line, got fields %v", fields)
 	}
-	req.Method = fields[0]
-	req.URL = fields[1]
-	req.Proto = fields[2]
-	return req.Method, req.Proto, req.URL, nil
+
+	return fields[0], fields[1], fields[2], nil
 }
 
 func validMethod(method string) bool {
@@ -271,22 +269,34 @@ func badStringError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
 
+func (res *Response) addInitialLine() string {
+	return fmt.Sprintf("%s %s %s%s", res.Proto, strconv.Itoa(res.StatusCode), res.StatusText, CRLF)
+}
+func (res *Response) addHeaders() string {
+	var headers string
+	if res.Connection == true {
+		headers += fmt.Sprintf("Connection: close%s", CRLF)
+	}
+	if !(res.ContentLength < 0) {
+		headers += fmt.Sprintf("Content-Length: %s%s", strconv.Itoa(res.ContentLength), CRLF)
+		headers += fmt.Sprintf("Content-Type: %s%s", res.ContentType, CRLF)
+	}
+	headers += fmt.Sprintf("Date: %s%s", res.Date, CRLF)
+	if res.ContentLength >= 0 {
+		headers += fmt.Sprintf("Last-Modified: %s%s", res.LastModified, CRLF)
+	}
+
+	headers += CRLF
+	headers += res.Body
+	return headers
+
+}
+
 func (res *Response) ToString() string {
 	var OUT string
-	OUT += fmt.Sprintf("%s %s %s%s", res.Proto, strconv.Itoa(res.StatusCode), res.StatusText, CRLF)
+	OUT += res.addInitialLine()
 
-	if res.Connection {
-		OUT += fmt.Sprintf("Connection: close%s", CRLF)
-	}
-	if res.ContentLength >= 0 {
-		OUT += fmt.Sprintf("Content-Length: %s%s", strconv.Itoa(res.ContentLength), CRLF)
-		OUT += fmt.Sprintf("Content-Type: %s%s", res.ContentType, CRLF)
-	}
-	OUT += fmt.Sprintf("Date: %s%s", res.Date, CRLF)
-
-	if res.ContentLength >= 0 {
-		OUT += fmt.Sprintf("Last-Modified: %s%s", res.LastModified, CRLF)
-	}
+	OUT += res.addHeaders()
 
 	OUT += CRLF
 	OUT += res.Body

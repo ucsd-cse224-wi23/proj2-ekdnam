@@ -16,23 +16,18 @@ import (
 
 const (
 	statusOK               = 200
-	statusBadRequest       = 400
-	statusNotFound         = 404
+	statusBR               = 400
+	statusFNF              = 404
 	statusMethodNotAllowed = 405
-
-	HOST        = "Host"
-	CONNECTION  = "Connection"
-	DATE        = "Date"
-	PROTO       = "HTTP/1.1"
-	MAXSIZE     = 10000
-	CONTENTTYPE = "text/html"
+	responseProto          = "HTTP/1.1"
+	respContentType        = "text/html"
 )
 
 var statusText = map[int]string{
 	statusOK:               "OK",
 	statusMethodNotAllowed: "Method Not Allowed",
-	statusNotFound:         "Not Found",
-	statusBadRequest:       "Bad Request",
+	statusFNF:              "Not Found",
+	statusBR:               "Bad Request",
 }
 
 type Server struct {
@@ -47,8 +42,22 @@ type Server struct {
 	VirtualHosts map[string]string
 }
 
-func myError(what, val string) error {
-	return fmt.Errorf("%s %q", what, val)
+func ReadLine(br *bufio.Reader) (string, error) {
+	var line string
+	for {
+		s, err := br.ReadString('\n')
+		line += s
+		// Return the error
+		if err != nil {
+			return line, err
+		}
+		// Return the line when reaching line end
+		if strings.HasSuffix(line, "\r\n") {
+			// Striping the line end
+			line = line[:len(line)-2]
+			return line, nil
+		}
+	}
 }
 
 // ListenAndServe listens on the TCP network address s.Addr and then
@@ -120,15 +129,18 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 			log.Printf("Failed to set timeout for connection %v", conn)
 			_ = conn.Close()
-			break
+			break // SAM C EXIT
 		}
 
 		// Read next request from the client
 		req, bytesRead, err := ReadRequest(br)
 
+		// Handle EOF --- 1. DO WE NEED TO DO ANYTHING HERE? -- CHECK HERE
 		if errors.Is(err, io.EOF) {
 			log.Printf("EOF")
-			continue
+			// _ = conn.Close()
+			// return
+			continue // SAM C
 		}
 
 		if err, ok := err.(net.Error); ok && err.Timeout() {
@@ -172,35 +184,31 @@ func (s *Server) HandleConnection(conn net.Conn) {
 	}
 }
 
-func ReadRequest(br *bufio.Reader) (req *Request, bytes bool, err error) {
+func ReadRequest(br *bufio.Reader) (req *Request, bytesRead bool, err error) {
 	req = &Request{}
 
-	req.init()
+	// Read start line
+	line, err := ReadLine(br)
+	if err != nil {
+		return nil, false, err
+	}
 
-	var line string
+	fmt.Println("Request Line: ", line)
 
-	line, err = ReadLine(br)
+	req.Method, err = parseRequestLine(line, req)
 
 	if err != nil {
-		return req, false, myError("Error while parsing request ", err.Error())
-	}
-	req.Method, req.URL, req.Proto, err = parseRequestLine(line)
-	if err != nil {
-		fmt.Print("Malformed start line error: ", err.Error())
-		return nil, true, myError("malformed start line", err.Error())
+		return nil, true, badStringError("malformed start line", line)
 	}
 
-	if !validMethod(req.Method) {
-		return nil, true, myError("invalid method", req.Method)
+	if !validMethod(req.Method) || !validProto(req.Proto) || req.URL[0] != '/' {
+		return nil, true, badStringError("invalid method", req.Method)
 	}
-	if !validProto(req.Proto) {
-		return nil, true, myError("Protocol is wrong. Expected HTTP/1.1, got: ", req.Proto)
-	}
-	if req.URL[0] != '/' {
-		return nil, true, myError("InvalidHeader: Request URL should start with `/`, but URL is ", req.URL)
-	}
+	hostFound := false
+	req.Close = false
 	for {
 		line, err := ReadLine(br)
+		fmt.Println("req line: ", line)
 		if err != nil {
 			return nil, true, err
 		}
@@ -208,47 +216,52 @@ func ReadRequest(br *bufio.Reader) (req *Request, bytes bool, err error) {
 			// This marks header end
 			break
 		}
-		if !strings.Contains(line, ":") {
-			return req, true, myError("InvalidHeader: Header does not contain colon", line)
-		} else {
-			fields := strings.SplitN(line, ":", 2)
-			if len(fields) != 2 {
-				return req, true, myError("InvalidHeader: Header does not contain two colon-separated values %v", line)
-			}
-			key := CanonicalHeaderKey(strings.TrimSpace(fields[0]))
-			if strings.Contains(key, " ") {
-				return req, true, myError("InvalidHeader: key in header has whitespace", line)
-			}
-			value := strings.TrimSpace(fields[1])
-			if strings.Contains(value, " ") {
-				return req, true, myError("InvalidHeader: value in header has whitespace", line)
-			}
-			req.Headers[key] = strings.ToLower(value)
-		}
-		// fmt.Println("Read line from request", line)
-	}
-	val, ok := req.Headers[CONNECTION]
-	if ok {
-		if strings.ToLower(val) == "close" {
-			req.Close = true
-		}
-	}
-	_, ok = req.Headers[HOST]
-	if !ok {
-		return req, true, myError("InvalidHeader: Does not contain `host` field", "")
-	}
-	req.Host = req.Headers[HOST]
 
+		// Check required headers
+		hostKeyValue := strings.SplitN(line, ": ", 2)
+		if len(hostKeyValue) != 2 {
+			return nil, true, errors.New("Header line has too many or too less values to unpack") // CHECK HERE
+		}
+
+		key := CanonicalHeaderKey(strings.TrimSpace(hostKeyValue[0]))
+		value := strings.TrimSpace(hostKeyValue[1])
+
+		if key == "Host" {
+			req.Host = value
+			hostFound = true
+		} else if key == "Connection" {
+			if value == "close" {
+				fmt.Println("Conn Close detected in request header")
+				req.Close = true
+			} else {
+				// return nil, true, errors.New("Connection value weird") // CHECK HERE
+				// IGNORE SAM C
+				fmt.Println("IGNORE")
+			}
+		} else {
+			// NOT HANDLING OTHER HEADERS -- CHECK HERE
+		}
+
+	}
+
+	if !hostFound {
+		return nil, true, errors.New("Host absent")
+	}
 	return req, true, nil
 }
 
 // parseRequestLine parses "GET /foo HTTP/1.1" into its individual parts.
-func parseRequestLine(line string) (string, string, string, error) {
+func parseRequestLine(line string, req *Request) (string, error) {
 	fields := strings.SplitN(line, " ", 3)
 	if len(fields) != 3 {
-		return "", "", "", fmt.Errorf("could not parse the request line, got fields %v", fields)
+		return "", fmt.Errorf("could not parse the request line, got fields %v", fields)
 	}
-	return fields[0], fields[1], fields[2], nil
+
+	req.Method = fields[0]
+	req.URL = fields[1]
+	req.Proto = fields[2]
+
+	return fields[0], nil
 }
 
 func validMethod(method string) bool {
@@ -288,9 +301,9 @@ func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
 	res.Request = req
 	res.Date = FormatTime(time.Now())
 
-	res.Proto = PROTO
+	res.Proto = responseProto
 
-	res.ContentType = CONTENTTYPE
+	res.ContentType = respContentType
 	res.ContentLength = -1
 
 	var web_file_dir = ""
@@ -305,7 +318,7 @@ func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
 	base_dir, ok := s.VirtualHosts[req.Host]
 	// base_dir = strings.Replace(base_dir, "../", "", -1)
 
-	res.StatusCode = statusNotFound
+	res.StatusCode = statusFNF
 	noOK := false
 	if ok {
 		// fmt.Println("BASE DIR: ", base_dir, web_file_dir)
@@ -349,7 +362,7 @@ func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
 		}
 
 	} else {
-		res.StatusCode = statusBadRequest
+		res.StatusCode = statusBR
 		fmt.Println("No OK Error")
 		// res.Connection = true
 		return res
@@ -393,32 +406,14 @@ func (s *Server) HandleBadRequest(req *Request) (res *Response) {
 
 	res.Request = req
 	res.Date = FormatTime(time.Now())
-	res.Proto = PROTO
+	res.Proto = responseProto
 
 	res.ContentLength = -1
-	res.ContentType = CONTENTTYPE
+	res.ContentType = respContentType
 
-	res.StatusCode = statusBadRequest
+	res.StatusCode = statusBR
 
 	res.Connection = true
 
 	return res
-}
-
-func ReadLine(br *bufio.Reader) (string, error) {
-	var line string
-	for {
-		s, err := br.ReadString('\n')
-		line += s
-		// Return the error
-		if err != nil {
-			return line, err
-		}
-		// Return the line when reaching line end
-		if strings.HasSuffix(line, "\r\n") {
-			// Striping the line end
-			line = line[:len(line)-2]
-			return line, nil
-		}
-	}
 }

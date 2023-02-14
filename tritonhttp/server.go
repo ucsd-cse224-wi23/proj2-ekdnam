@@ -8,7 +8,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +25,7 @@ const (
 	PROTO       = "HTTP/1.1"
 	MAXSIZE     = 10000
 	CONTENTTYPE = "text/html"
+	CRLF        = "\r\n"
 	// LAYOUT = "01 02 2006 15:04:05"
 )
 
@@ -62,7 +62,7 @@ func ReadLine(br *bufio.Reader) (string, error) {
 			return line, err
 		}
 		// Return the line when reaching line end
-		if strings.HasSuffix(line, "\r\n") {
+		if strings.HasSuffix(line, CRLF) {
 			// Striping the line end
 			line = line[:len(line)-2]
 			return line, nil
@@ -140,7 +140,6 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			_ = conn.Close()
 			break
 		}
-
 		// Read next request from the client
 		req, bytes, err := ReadRequest(br)
 
@@ -148,7 +147,6 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			log.Printf("End of file encountered")
 			continue
 		}
-
 		if err, ok := err.(net.Error); ok && err.Timeout() {
 			if !bytes {
 				log.Printf("Connection to %v timed out", conn.RemoteAddr())
@@ -163,8 +161,6 @@ func (s *Server) HandleConnection(conn net.Conn) {
 			}
 			return
 		}
-
-		// Handle the request which is not a GET and immediately close the connection and return
 		if err != nil {
 			log.Printf("Handle bad request for error: %v", err)
 			res.HandleBadRequest(req)
@@ -194,11 +190,8 @@ func ReadRequest(br *bufio.Reader) (req *Request, bytesRead bool, err error) {
 	if err != nil {
 		return nil, false, err
 	}
-
-	fmt.Println("Request Line: ", line)
-
-	req.Method, err = parseRequestLine(line, req)
-
+	fmt.Print(line + "\n")
+	req.Method, req.Proto, req.URL, err = parseRequestLine(line, req)
 	if err != nil {
 		return nil, true, badStringError("malformed start line", line)
 	}
@@ -207,7 +200,7 @@ func ReadRequest(br *bufio.Reader) (req *Request, bytesRead bool, err error) {
 		return nil, true, badStringError("invalid method", req.Method)
 	}
 	if !validProto(req.Proto) {
-		return nil, true, badStringError("invalid Proto", req.Method)
+		return nil, true, badStringError("invalid Proto", req.Proto)
 	}
 	if req.URL[0] != '/' {
 		return nil, true, badStringError("invalid URL", req.URL)
@@ -255,17 +248,15 @@ func ReadRequest(br *bufio.Reader) (req *Request, bytesRead bool, err error) {
 }
 
 // parseRequestLine parses "GET /foo HTTP/1.1" into its individual parts.
-func parseRequestLine(line string, req *Request) (string, error) {
+func parseRequestLine(line string, req *Request) (string, string, string, error) {
 	fields := strings.SplitN(line, " ", 3)
 	if len(fields) != 3 {
-		return "", fmt.Errorf("could not parse the request line, got fields %v", fields)
+		return "", "", "", fmt.Errorf("could not parse the request line, got fields %v", fields)
 	}
-
 	req.Method = fields[0]
 	req.URL = fields[1]
 	req.Proto = fields[2]
-
-	return fields[0], nil
+	return req.Method, req.Proto, req.URL, nil
 }
 
 func validMethod(method string) bool {
@@ -280,129 +271,24 @@ func badStringError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
 
-func (res *Response) Write(w io.Writer, conn net.Conn) error {
-	bw := bufio.NewWriter(w)
-	response := convertRespToString(res)
-	fmt.Println("Giving Response")
-	if _, err := bw.Write([]byte(response)); err != nil {
-		_ = conn.Close()
-		return err
-	}
-	if err := bw.Flush(); err != nil {
-		_ = conn.Close()
-		return err
-	}
-	if res.Connection {
-		_ = conn.Close()
-		// return errors.New("Connection Close Command")
-	}
-	return nil
-}
-
-func (res *Response) HandleGoodRequest(req *Request, virtualHosts map[string]string) {
-
-	res.Request = req
-	res.Date = FormatTime(time.Now())
-
-	res.Proto = PROTO
-
-	res.ContentType = CONTENTTYPE
-	res.ContentLength = -1
-
-	var filelocation = ""
-	if strings.HasSuffix(req.URL, "/") {
-		filelocation = req.URL + "index.html"
-	} else {
-		filelocation = req.URL
-	}
-
-	docroot, ok := virtualHosts[req.Host]
-
-	res.StatusCode = statusNotFound
-	noOK := false
-	if ok {
-		filelocfinal := docroot + filelocation
-		fmt.Println("full path requested: ", filelocfinal)
-		filelocfinal = filepath.Clean(filelocfinal)
-		fmt.Println("full path requested post cleaning: ", filelocfinal)
-
-		if strings.Contains("../", filelocfinal) {
-			fmt.Println("../ detected")
-			noOK = true
-		}
-
-		fi, err := os.Stat(filelocfinal)
-
-		if os.IsNotExist(err) {
-			fmt.Println("Is Not Exist Error")
-			noOK = true
-		} else if fi.IsDir() {
-			fmt.Println("Is Dir Error")
-			noOK = true
-		} else {
-			content, err := os.ReadFile(filelocfinal)
-			if err != nil {
-				fmt.Println("File Read Error")
-				res.Connection = true
-				return
-			}
-			res.ContentLength = int(fi.Size())
-			res.LastModified = FormatTime(fi.ModTime())
-			res.Body = string(content)
-			res.ContentType = strings.Split(MIMETypeByExtension(filelocfinal[strings.LastIndex(filelocfinal, "."):]), ";")[0]
-		}
-
-	} else {
-		res.StatusCode = statusBadRequest
-		fmt.Println("No OK Error")
-		return
-	}
-
-	if !noOK {
-		res.StatusCode = statusOK
-	}
-
-	if req.Close {
-		res.Connection = true
-	}
-
-	return
-}
-
-func convertRespToString(res *Response) string {
-	var response string
-	response += res.Proto + " " + strconv.Itoa(res.StatusCode) + " " + statusText[res.StatusCode] + "\r\n"
+func (res *Response) ToString() string {
+	var OUT string
+	OUT += fmt.Sprintf("%s %s %s%s", res.Proto, strconv.Itoa(res.StatusCode), res.StatusText, CRLF)
 
 	if res.Connection {
-		response += "Connection: " + "close" + "\r\n"
+		OUT += fmt.Sprintf("Connection: close%s", CRLF)
 	}
 	if res.ContentLength >= 0 {
-		response += "Content-Length: " + strconv.Itoa(res.ContentLength) + "\r\n"
-		response += "Content-Type: " + res.ContentType + "\r\n"
+		OUT += fmt.Sprintf("Content-Length: %s%s", strconv.Itoa(res.ContentLength), CRLF)
+		OUT += fmt.Sprintf("Content-Type: %s%s", res.ContentType, CRLF)
 	}
-	response += "Date: " + res.Date + "\r\n"
+	OUT += fmt.Sprintf("Date: %s%s", res.Date, CRLF)
 
 	if res.ContentLength >= 0 {
-		response += "Last-Modified: " + res.LastModified + "\r\n"
+		OUT += fmt.Sprintf("Last-Modified: %s%s", res.LastModified, CRLF)
 	}
 
-	response += "\r\n"
-	response += res.Body
-	return response
-}
-
-func (res *Response) HandleBadRequest(req *Request) {
-
-	res.Request = req
-	res.Date = FormatTime(time.Now())
-	res.Proto = PROTO
-
-	res.ContentLength = -1
-	res.ContentType = CONTENTTYPE
-
-	res.StatusCode = statusBadRequest
-
-	res.Connection = true
-
-	return
+	OUT += CRLF
+	OUT += res.Body
+	return OUT
 }

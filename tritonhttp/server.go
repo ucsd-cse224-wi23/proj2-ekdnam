@@ -2,33 +2,30 @@ package tritonhttp
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"mime"
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	responseProto = "HTTP/1.1"
-
 	statusOK               = 200
-	statusMethodNotAllowed = 405
-	statusNotFound         = 404
 	statusBadRequest       = 400
+	statusNotFound         = 404
+	statusMethodNotAllowed = 405
 
-	HOST       = "Host"
-	CONNECTION = "Connection"
-	DATE       = "Date"
-	PROTO      = "HTTP/1.1"
-	MAXSIZE    = 10000
-	// LAYOUT = "01 02 2006 15:04:05"
+	HOST        = "Host"
+	CONNECTION  = "Connection"
+	DATE        = "Date"
+	PROTO       = "HTTP/1.1"
+	MAXSIZE     = 10000
+	CONTENTTYPE = "text/html"
 )
 
 var statusText = map[int]string{
@@ -39,47 +36,30 @@ var statusText = map[int]string{
 }
 
 type Server struct {
-	// Addr ("host:port") : specifies the TCP address of the server
-	Addr string
-	// DocRoot the root folder under which clients can potentially look up information.
-	// Anything outside this should be "out-of-bounds"
-	DocRoot string
-	// VirtualHosts
+	// Addr specifies the TCP address for the server to listen on,
+	// in the form "host:port". It shall be passed to net.Listen()
+	// during ListenAndServe().
+	Addr string // e.g. ":0"
+	// DocRoot string
+	// VirtualHosts contains a mapping from host name to the docRoot path
+	// (i.e. the path to the directory to serve static files from) for
+	// all virtual hosts that this server supports
 	VirtualHosts map[string]string
 }
 
-// ReadLine reads a single line ending with "\r\n" from br,
-// striping the "\r\n" line end from the returned string.
-// If any error occurs, data read before the error is also returned.
-// You might find this function useful in parsing requests.
-func ReadLine(br *bufio.Reader) (string, error) {
-	var line string
-	for {
-		s, err := br.ReadString('\n')
-		line += s
-		// Return the error
-		if err != nil {
-			return line, err
-		}
-		// Return the line when reaching line end
-		if strings.HasSuffix(line, "\r\n") {
-			// Striping the line end
-			line = line[:len(line)-2]
-			return line, nil
-		}
-	}
+func myError(what, val string) error {
+	return fmt.Errorf("%s %q", what, val)
 }
 
-func (s *Server) init() {
-	s.DocRoot = "docroot_dirs"
-	fmt.Println(s.VirtualHosts)
-}
+// ListenAndServe listens on the TCP network address s.Addr and then
+// handles requests on incoming connections.
 func (s *Server) ListenAndServe() error {
-	// Validate the configuration of the server
-	s.init()
-	// if err := s.ValidateServerSetup(); err != nil {
-	// 	return fmt.Errorf("server is not setup correctly %v", err)
-	// }
+
+	// Hint: Validate all docRoots
+
+	if err := s.ValidateServerSetup(); err != nil {
+		return fmt.Errorf("server is not setup correctly %v", err)
+	}
 	fmt.Println("Server setup valid!")
 
 	// server should now start to listen on the configured address
@@ -106,37 +86,36 @@ func (s *Server) ListenAndServe() error {
 		fmt.Println("accepted connection", conn.RemoteAddr())
 		go s.HandleConnection(conn)
 	}
+
+	// Hint: create your listen socket and spawn off goroutines per incoming client
+	// panic("todo")
 }
 
-func prettyPrintReq(request *Request) {
-	empJSON, err := json.MarshalIndent(*request, "", "  ")
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-	fmt.Printf("Request %s\n", string(empJSON))
-}
+func (s *Server) ValidateServerSetup() error {
+	// Validating the doc root of the server
 
-func prettyPrintRes(response *Response) {
-	tmp := ""
-	if len(response.Body) > 0 {
-		tmp = response.Body
-		response.Body = ""
-	}
-	empJSON, err := json.MarshalIndent(*response, "", "  ")
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-	if tmp != "" {
-		response.Body = tmp
-	}
-	fmt.Printf("Response %s\n", string(empJSON))
+	for website, path := range s.VirtualHosts {
+		// fmt.Println("Key:", key, "=>", "Element:", element)
+		fi, err := os.Stat(path)
 
+		if os.IsNotExist(err) {
+			return err
+		}
+
+		if !fi.IsDir() {
+			return fmt.Errorf("doc root %q is not a directory for %q", path, website)
+		}
+	}
+
+	return nil
 }
 
 // HandleConnection reads requests from the accepted conn and handles them.
 func (s *Server) HandleConnection(conn net.Conn) {
-	br := bufio.NewReaderSize(conn, MAXSIZE)
+	br := bufio.NewReader(conn)
 	for {
+		fmt.Println("BEGINNING OF FOR")
+
 		// Set timeout
 		if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 			log.Printf("Failed to set timeout for connection %v", conn)
@@ -145,123 +124,54 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		}
 
 		// Read next request from the client
-		req, bytes, err := ReadRequest(br)
+		req, bytesRead, err := ReadRequest(br)
 
-		// timeout in this application means we just close the connection
-		// Note : proj3 might require you to do a bit more here
-		if err, ok := err.(net.Error); ok && err.Timeout() {
-			if !bytes {
-				log.Printf("Connection to %v timed out", conn.RemoteAddr())
-				_ = conn.Close()
-			} else {
-				res := s.HandleBadRequest()
-				err := res.Write(conn, conn)
-				if err != nil {
-					fmt.Printf(err.Error())
-				}
-				_ = conn.Close()
-			}
-			return
-		}
-
-		// Handle EOF
 		if errors.Is(err, io.EOF) {
-			log.Printf("Connection closed by %v", conn.RemoteAddr())
-			// _ = conn.Close()
-			// return
+			log.Printf("EOF")
 			continue
 		}
 
-		if err != nil {
-			log.Printf(err.Error())
-			log.Printf("Handle bad request for error")
-			res := &Response{}
-			res.HandleBadRequest()
-			_ = res.Write(conn, conn)
-			_ = conn.Close()
+		if err, ok := err.(net.Error); ok && err.Timeout() {
+			if !bytesRead {
+				log.Printf("Connection to %v timed out", conn.RemoteAddr())
+				_ = conn.Close()
+			} else {
+				res := s.HandleBadRequest(req)
+				err := res.Write(conn, conn)
+				if err != nil {
+					fmt.Println(err)
+				}
+				_ = conn.Close()
+			}
 			return
 		}
 
-		prettyPrintReq(req)
-
-		res := s.HandleGoodRequest()
-		err = s.parseAndGenerateResponse(req, res)
-		if req.Close {
-			res.Headers["Connection"] = "close"
-		}
-		prettyPrintRes(res)
-		// 404 error
+		// Handle the request which is not a GET and immediately close the connection and return
 		if err != nil {
-			res := s.HandleNotFoundRequest()
-			if req.Close {
-				res.Headers["Connection"] = "close"
+			log.Printf("Handle bad request for error: %v", err)
+
+			res := s.HandleBadRequest(req)
+			err = res.Write(conn, conn)
+			if err != nil {
+				fmt.Println(err)
 			}
-			_ = res.Write(conn, conn)
-			if req.Close {
-				err = conn.Close()
-				if err != nil {
-					fmt.Println("Error while closing connection")
-				}
+			_ = conn.Close()
+
+		} else {
+			// Handle good request
+			log.Printf("Handle good request: %v", req)
+			res := s.HandleGoodRequest(req)
+			err = res.Write(conn, conn)
+			if err != nil {
+				fmt.Println(err)
 				return
 			}
 		}
-		err = res.Write(conn, conn)
-		if err != nil {
-			fmt.Println(err)
-			conn.Close()
-		}
-		// if req.Close {
-		// 	conn.Close()
-		// 	return
-		// }
 
-		// We'll never close the connection and handle as many requests for this connection and pass on this
-		// responsibility to the timeout mechanism
+		// fmt.Println("END OF FOR")
 	}
 }
 
-// HTTP/1.1 200 OK | Connection close
-func (s *Server) HandleCloseRequest() (res *Response) {
-	res = &Response{}
-	res.init()
-	res.StatusCode = statusOK
-	res.StatusText = statusText[statusOK]
-	res.Headers[CONNECTION] = "close"
-	return res
-}
-
-func (s *Server) HandleBadRequest() (res *Response) {
-	res = &Response{}
-	res.init()
-	res.StatusCode = statusBadRequest
-	res.StatusText = statusText[statusBadRequest]
-	res.FilePath = ""
-	res.Headers[CONNECTION] = "close"
-	return res
-}
-
-// HTTP/1.1 200 OK
-func (s *Server) HandleGoodRequest() (res *Response) {
-	res = &Response{}
-	res.HandleOK()
-	return res
-}
-
-// HTTP/1.1 404 Not Found
-func (s *Server) HandleNotFoundRequest() (res *Response) {
-	res = &Response{}
-	res.init()
-	res.StatusCode = statusNotFound
-	res.StatusText = statusText[statusNotFound]
-	return res
-}
-
-func validProto(proto string) bool {
-	if proto != PROTO {
-		return false
-	}
-	return true
-}
 func ReadRequest(br *bufio.Reader) (req *Request, bytes bool, err error) {
 	req = &Request{}
 
@@ -345,51 +255,170 @@ func validMethod(method string) bool {
 	return method == "GET"
 }
 
-func myError(what, val string) error {
+func validProto(method string) bool {
+	return method == "HTTP/1.1"
+}
+
+func badStringError(what, val string) error {
 	return fmt.Errorf("%s %q", what, val)
 }
 
-func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
-	// res.Request = req
-	if req.Close {
-		res.Headers[CONNECTION] = "close"
+func (res *Response) Write(w io.Writer, conn net.Conn) error {
+	bw := bufio.NewWriter(w)
+	response := convertRespToString(res)
+	fmt.Println("Giving Response")
+	if _, err := bw.WriteString(response); err != nil {
+		_ = conn.Close()
+		return err
 	}
-	if _, ok := s.VirtualHosts[req.Host]; !ok {
-		res.StatusCode = statusBadRequest
-		res.StatusText = statusText[statusBadRequest]
-		res.Headers[CONNECTION] = "close"
-		return myError("HostmyError: Host not present in DocRoot. Host: ", req.Host)
+	if err := bw.Flush(); err != nil {
+		_ = conn.Close()
+		return err
 	}
-
-	if strings.HasSuffix(req.URL, "/") {
-		req.URL += "index.html"
+	if res.Connection {
+		_ = conn.Close()
+		// return errors.New("Connection Close Command")
 	}
-	filelocation := s.VirtualHosts[req.Host] + req.URL
-
-	filelocation = filepath.Clean(filelocation)
-
-	info, err := os.Stat(filelocation)
-	if !os.IsNotExist(err) {
-		if info.IsDir() {
-			filelocation = filelocation + "/index.html"
-			info, err = os.Stat(filelocation)
-		}
-	} else {
-		fmt.Println("Not exist error", filelocation)
-		res = s.HandleNotFoundRequest()
-		return myError("HostmyError: File Not Found. ", filelocation)
-	}
-	fmt.Printf("Filelocation is: %s\n", filelocation)
-	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
-	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
-	contenttype := mime.TypeByExtension(filepath.Ext(filelocation))
-	res.Headers["Content-Type"] = strings.Split(contenttype, ";")[0]
-	if res.Headers["Content-Type"] == "" {
-		res.Headers["Content-Type"] = filelocation
-	}
-	res.FilePath = filelocation
-	body, _ := os.ReadFile(filelocation)
-	res.Body = string(body)
-
 	return nil
+}
+
+func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
+	res = &Response{}
+
+	res.Request = req
+	res.Date = FormatTime(time.Now())
+
+	res.Proto = PROTO
+
+	res.ContentType = CONTENTTYPE
+	res.ContentLength = -1
+
+	var web_file_dir = ""
+	if strings.HasSuffix(req.URL, "/") {
+		web_file_dir = req.URL + "index.html"
+	} else {
+		web_file_dir = req.URL
+	}
+
+	// fmt.Println(s.VirtualHosts)
+	// fmt.Println(req.Host)
+	base_dir, ok := s.VirtualHosts[req.Host]
+	// base_dir = strings.Replace(base_dir, "../", "", -1)
+
+	res.StatusCode = statusNotFound
+	noOK := false
+	if ok {
+		// fmt.Println("BASE DIR: ", base_dir, web_file_dir)
+		fmt.Println("base dir: ", base_dir)
+		fmt.Println("web file dir: ", web_file_dir)
+		fullPath := base_dir + web_file_dir
+		fmt.Println("full path requested: ", fullPath)
+		fullPath = filepath.Clean(fullPath)
+		fmt.Println("full path requested post cleaning: ", fullPath)
+
+		if strings.Contains("../", fullPath) {
+			fmt.Println("../ detected")
+			// res.Connection = true
+			// return res
+			noOK = true
+		}
+
+		fi, err := os.Stat(fullPath)
+
+		if os.IsNotExist(err) {
+			fmt.Println("Is Not Exist Error")
+			// res.Connection = true
+			// return res
+			noOK = true
+		} else if fi.IsDir() {
+			fmt.Println("Is Dir Error")
+			// res.Connection = true
+			// return res
+			noOK = true
+		} else {
+			content, err := os.ReadFile(fullPath)
+			if err != nil {
+				fmt.Println("File Read Error")
+				res.Connection = true
+				return res
+			}
+			res.ContentLength = int(fi.Size())
+			res.LastModified = FormatTime(fi.ModTime())
+			res.Body = string(content)
+			res.ContentType = strings.Split(MIMETypeByExtension(fullPath[strings.LastIndex(fullPath, "."):]), ";")[0]
+		}
+
+	} else {
+		res.StatusCode = statusBadRequest
+		fmt.Println("No OK Error")
+		// res.Connection = true
+		return res
+	}
+
+	if !noOK {
+		res.StatusCode = statusOK
+	}
+
+	if req.Close {
+		res.Connection = true
+	}
+
+	return res
+}
+
+func convertRespToString(res *Response) string {
+	var response string
+	response += res.Proto + " " + strconv.Itoa(res.StatusCode) + " " + statusText[res.StatusCode] + "\r\n"
+
+	if res.Connection {
+		response += "Connection: " + "close" + "\r\n"
+	}
+	if res.ContentLength >= 0 {
+		response += "Content-Length: " + strconv.Itoa(res.ContentLength) + "\r\n"
+		response += "Content-Type: " + res.ContentType + "\r\n"
+	}
+	response += "Date: " + res.Date + "\r\n"
+
+	if res.ContentLength >= 0 {
+		response += "Last-Modified: " + res.LastModified + "\r\n"
+	}
+
+	response += "\r\n"
+	response += res.Body
+	return response
+}
+
+func (s *Server) HandleBadRequest(req *Request) (res *Response) {
+	res = &Response{}
+
+	res.Request = req
+	res.Date = FormatTime(time.Now())
+	res.Proto = PROTO
+
+	res.ContentLength = -1
+	res.ContentType = CONTENTTYPE
+
+	res.StatusCode = statusBadRequest
+
+	res.Connection = true
+
+	return res
+}
+
+func ReadLine(br *bufio.Reader) (string, error) {
+	var line string
+	for {
+		s, err := br.ReadString('\n')
+		line += s
+		// Return the error
+		if err != nil {
+			return line, err
+		}
+		// Return the line when reaching line end
+		if strings.HasSuffix(line, "\r\n") {
+			// Striping the line end
+			line = line[:len(line)-2]
+			return line, nil
+		}
+	}
 }

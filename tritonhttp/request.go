@@ -1,9 +1,5 @@
 package tritonhttp
 
-import (
-	"strings"
-)
-
 type Request struct {
 	Method string // e.g. "GET"
 	URL    string // e.g. "/path/to/a/file"
@@ -19,23 +15,4 @@ type Request struct {
 func (req *Request) init() {
 	req.Headers = make(map[string]string)
 	req.Close = false
-}
-
-func (req *Request) processHeader() (err error) {
-	if req.URL[0] != '/' {
-		return myError("InvalidHeader: Request URL should start with `/`, but URL is ", req.URL)
-	}
-	_, ok := req.Headers[HOST]
-	if !ok {
-		return myError("InvalidHeader: Does not contain `host` field", "")
-	}
-	req.Host = req.Headers[HOST]
-	val, ok := req.Headers[CONNECTION]
-	if ok {
-		if strings.ToLower(val) == "close" {
-			req.Close = true
-		}
-	}
-
-	return nil
 }

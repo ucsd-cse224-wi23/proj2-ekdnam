@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net"
 	"os"
 	"path/filepath"
@@ -142,7 +143,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 				log.Printf("Connection to %v timed out", conn.RemoteAddr())
 				_ = conn.Close()
 			} else {
-				res := s.HandleBadRequest()
+				res := s.HandleBadRequest(req)
 				err := res.Write(conn, conn)
 				if err != nil {
 					fmt.Printf(err.Error())
@@ -163,8 +164,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		if err != nil {
 			log.Printf(err.Error())
 			log.Printf("Handle bad request for error")
-			res := &Response{}
-			res.HandleBadRequest()
+			res := s.HandleBadRequest(req)
 			_ = res.Write(conn, conn)
 			_ = conn.Close()
 			return
@@ -172,7 +172,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 
 		prettyPrintReq(req)
 
-		res := s.HandleGoodRequest()
+		res := s.HandleGoodRequest(req)
 		err = s.parseAndGenerateResponse(req, res)
 		if req.Close {
 			res.Headers["Connection"] = "close"
@@ -180,7 +180,7 @@ func (s *Server) HandleConnection(conn net.Conn) {
 		prettyPrintRes(res)
 		// 404 error
 		if err != nil {
-			res := s.HandleNotFoundRequest()
+			res := s.HandleNotFoundRequest(req)
 			if req.Close {
 				res.Headers["Connection"] = "close"
 			}
@@ -209,18 +209,18 @@ func (s *Server) HandleConnection(conn net.Conn) {
 }
 
 // HTTP/1.1 200 OK | Connection close
-func (s *Server) HandleCloseRequest() (res *Response) {
+func (s *Server) HandleCloseRequest(req *Request) (res *Response) {
 	res = &Response{}
-	res.init()
+	res.init(req)
 	res.StatusCode = statusOK
 	res.StatusText = statusText[statusOK]
 	res.Headers[CONNECTION] = "close"
 	return res
 }
 
-func (s *Server) HandleBadRequest() (res *Response) {
+func (s *Server) HandleBadRequest(req *Request) (res *Response) {
 	res = &Response{}
-	res.init()
+	res.init(req)
 	res.StatusCode = statusBadRequest
 	res.StatusText = statusText[statusBadRequest]
 	res.FilePath = ""
@@ -229,16 +229,18 @@ func (s *Server) HandleBadRequest() (res *Response) {
 }
 
 // HTTP/1.1 200 OK
-func (s *Server) HandleGoodRequest() (res *Response) {
+func (s *Server) HandleGoodRequest(req *Request) (res *Response) {
 	res = &Response{}
-	res.HandleOK()
+	res.init(req)
+	res.StatusCode = statusOK
+	res.StatusText = statusText[statusOK]
 	return res
 }
 
 // HTTP/1.1 404 Not Found
-func (s *Server) HandleNotFoundRequest() (res *Response) {
+func (s *Server) HandleNotFoundRequest(req *Request) (res *Response) {
 	res = &Response{}
-	res.init()
+	res.init(req)
 	res.StatusCode = statusNotFound
 	res.StatusText = statusText[statusNotFound]
 	return res
@@ -352,13 +354,13 @@ func (s *Server) parseAndGenerateResponse(req *Request, res *Response) error {
 		}
 	} else {
 		fmt.Println("Not exist error", filelocation)
-		res = s.HandleNotFoundRequest()
+		res = s.HandleNotFoundRequest(req)
 		return myError("HostmyError: File Not Found. ", filelocation)
 	}
 	fmt.Printf("Filelocation is: %s\n", filelocation)
 	res.Headers["Content-Length"] = fmt.Sprint(info.Size())
 	res.Headers["Last-Modified"] = fmt.Sprintf(FormatTime(info.ModTime()))
-	contenttype := MIMETypeByExtension(filelocation[strings.LastIndex(filelocation, "."):])
+	contenttype := mime.TypeByExtension(filepath.Ext(filelocation))
 	res.Headers["Content-Type"] = strings.Split(contenttype, ";")[0]
 	if res.Headers["Content-Type"] == "" {
 		res.Headers["Content-Type"] = filelocation

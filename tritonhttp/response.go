@@ -30,36 +30,14 @@ type Response struct {
 	Body string
 }
 
-// HandleOK prepares res to be a 200 OK response
-// ready to be written back to client.
-func (res *Response) HandleOK() {
-	res.init()
-	res.StatusCode = statusOK
-	res.StatusText = statusText[statusOK]
-}
-
-func (res *Response) HandleClose() {
-	res.init()
-	res.StatusCode = statusOK
-	res.StatusText = statusText[statusOK]
-	res.FilePath = ""
-	res.Headers[CONNECTION] = "close"
-}
-
-// HandleBadRequest prepares res to be a 405 Method Not allowed response
-func (res *Response) HandleBadRequest() {
-	res.init()
-	res.StatusCode = statusBadRequest
-	res.StatusText = statusText[statusBadRequest]
-	res.FilePath = ""
-	res.Headers[CONNECTION] = "close"
-}
-
-func (res *Response) init() {
+func (res *Response) init(req *Request) {
 	res.Proto = responseProto
 	res.Headers = make(map[string]string)
 	res.Body = ""
 	res.Headers[DATE] = FormatTime(time.Now())
+	if req.Close {
+		res.Headers["Connection"] = "close"
+	}
 }
 
 func (res *Response) getStatusLine() string {
@@ -117,8 +95,8 @@ func (res *Response) generateResponseHeaders() string {
 	return line
 }
 
-func (res *Response) HandleNotFound() {
-	res.init()
+func (res *Response) HandleNotFound(req *Request) {
+	res.init(req)
 	res.StatusCode = statusNotFound
 	// res.Headers[CONNECTION] = "close"
 }

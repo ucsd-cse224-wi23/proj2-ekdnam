@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -68,28 +69,27 @@ func (res *Response) getStatusLine() string {
 
 func (res *Response) Write(w io.Writer, conn net.Conn) error {
 	bw := bufio.NewWriterSize(w, MAXSIZE)
+	response := ""
 
-	statusLine := res.getStatusLine()
+	statusLine := res.Proto + " " + strconv.Itoa(res.StatusCode) + " " + res.StatusText + "\r\n"
 	headers := res.generateResponseHeaders()
-	fmt.Printf("Headers: %s", headers)
-	_, err := w.Write([]byte(statusLine + headers + "\r\n"))
+
+	response += statusLine + headers + "\r\n"
+
+	if res.StatusCode == 200 {
+		response += res.Body
+	}
+	_, err := bw.Write([]byte(response))
 	if err != nil {
+		fmt.Println("Error occurred: ", err.Error())
 		return err
 	}
-	if res.StatusCode == 200 {
-		_, err := w.Write([]byte(res.Body))
-		if err != nil {
-			_ = conn.Close()
-			return err
-		}
-	}
-
 	if err := bw.Flush(); err != nil {
 		_ = conn.Close()
 		return err
 	}
 	if res.Headers[CONNECTION] == "close" {
-		err = conn.Close()
+		err := conn.Close()
 		if err != nil {
 			return myError("error while closing connection, ", err.Error())
 		}
